@@ -236,6 +236,12 @@ button { font: inherit; cursor: pointer; }
 .tk-band .l { display: inline-flex; align-items: center; gap: 8px; }
 .tk-band .r { color: var(--amber); }
 
+/* ---------- boot (shown until we know whether a passcode is needed) ---------- */
+.boot { min-height: calc(100vh - 88px); display: grid; place-items: center; }
+.boot-in { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--amber); animation: blink 1.2s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .boot-in { animation: none; } }
+
 /* ---------- lock ---------- */
 .lock { min-height: calc(100vh - 88px); display: grid; place-items: center; }
 .lock .card { width: min(440px, 100%); border-radius: 12px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.5); background: var(--paper); }
@@ -318,7 +324,9 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 </head>
 <body>
 
-<div class="lock" id="lock">
+<div class="boot" id="boot" role="status" aria-live="polite"><span class="boot-in"><span data-icon="plane"></span>Checking in…</span></div>
+
+<div class="lock" id="lock" hidden>
   <div class="card paper">
     <div class="tk-band"><span class="l"><span data-icon="plane"></span>Boarding pass</span><span class="r">Travel tracker</span></div>
     <form id="lockForm" novalidate>
@@ -1169,7 +1177,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     function showLock(msg) {
       stopAll();
       parties = []; events = []; loaded = false;
-      $("app").hidden = true; $("scrim").hidden = true; $("evScrim").hidden = true; $("adScrim").hidden = true; $("lock").hidden = false;
+      $("boot").hidden = true; $("app").hidden = true; $("scrim").hidden = true; $("evScrim").hidden = true; $("adScrim").hidden = true; $("lock").hidden = false;
       $("lockErr").textContent = msg || "";
       $("lockGo").disabled = false;
       setTimeout(() => $("lockCode").focus(), 0);
@@ -1207,7 +1215,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         if (first) {
           first = false;
           $("lockBtn").hidden = openMode;
-          $("lock").hidden = true; $("app").hidden = false; $("addBtn").disabled = false;
+          $("boot").hidden = true; $("lock").hidden = true; $("app").hidden = false; $("addBtn").disabled = false;
           render(); centerOn(pinned); spinFlaps();
         } else render();
       }, (err) => {
@@ -1233,7 +1241,6 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     }
 
     // Start: sign in, read settings, try the board; fall back to a passcode remembered by the older version.
-    $("lockErr").textContent = "Checking…"; $("lockGo").disabled = true;
     auth.signInAnonymously().then(async (cred) => {
       uid = cred.user.uid;
       try { const s = await fsdb.doc("config/settings").get(); openMode = s.exists && s.data().open === true; } catch (_) {}
