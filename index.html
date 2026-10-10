@@ -216,6 +216,13 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 .stop-edit .rm { position: absolute; top: -13px; right: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); width: 26px; height: 26px; border-radius: 50%; font-size: 16px; line-height: 1; display: grid; place-items: center; padding: 0; }
 .stop-edit .rm:hover { color: var(--danger); border-color: var(--danger); }
 .stop-edit .f-mode { grid-column: 1 / -1; }
+.modes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; max-width: 360px; }
+.mbtn { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; border: 0; background: transparent; padding: 2px 0; color: var(--muted); font-size: 11px; font-weight: 600; border-radius: 8px; }
+.mbtn .b { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--line); background: var(--surface); color: var(--muted); transition: background .12s, color .12s; }
+.mbtn:hover .b { border-color: var(--c); color: var(--c); }
+.mbtn[aria-checked="true"] { color: var(--fg); }
+.mbtn[aria-checked="true"] .b { background: var(--c); border-color: var(--c); color: var(--surface); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--c); }
+.stop-edit .lbl-s { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
 .stop-edit label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
 .err { color: var(--danger); font-size: 13px; margin: 0; min-height: 1em; }
 .modal-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -437,6 +444,12 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     boat:  { label: "Boat", d: "M20 21c-1.39 0-2.78-.47-4-1.32-2.44 1.71-5.56 1.71-8 0C6.78 20.53 5.39 21 4 21H2v2h2c1.38 0 2.74-.35 4-.99a8.75 8.75 0 0 0 8 0c1.26.65 2.62.99 4 .99h2v-2h-2zM3.95 19H4c1.6 0 3.02-.88 4-2 .98 1.12 2.4 2 4 2s3.02-.88 4-2c.98 1.12 2.4 2 4 2h.05l1.89-6.68c.08-.26.06-.54-.06-.78s-.34-.42-.6-.5L20 10.62V6c0-1.1-.9-2-2-2h-3V1H9v3H6c-1.1 0-2 .9-2 2v4.62l-1.29.42a1.007 1.007 0 0 0-.66 1.28L3.95 19zM6 6h12v3.97L12 8 6 9.97V6z" },
   };
   const DEFAULT_MODE = "plane";
+  function modeSvg(k, size) {
+    const md = MODES[k], sz = size || 18;
+    const inner = md ? `<path d="${md.d}"${md.rot ? ` transform="rotate(${md.rot} 12 12)"` : ""}/>`
+                     : `<circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>`;
+    return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${inner}</svg>`;
+  }
   const $ = (id) => document.getElementById(id);
   function icon(name, size) {
     const ic = ICONS[name] || ICONS.star, s = size || 16;
@@ -812,7 +825,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       const b = el("button"); b.type = "button"; b.style.setProperty("--c", c);
       if (!allTaken && taken.has(c)) { b.disabled = true; b.title = "Already used by another party"; }
       b.setAttribute("aria-label", "Color " + (i + 1)); b.setAttribute("aria-pressed", String(c === formColor));
-      b.addEventListener("click", () => { formColor = c; renderSwatches(); });
+      b.addEventListener("click", () => { formColor = c; renderSwatches(); $("stops").style.setProperty("--c", c); });
       box.append(b);
     });
   }
@@ -831,7 +844,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       `<div class="field"><label for="sp${i}">Country</label><select id="sp${i}" class="s-country"></select></div>` +
       `<div class="field"><label for="ss${i}">From</label><input type="date" id="ss${i}"></div>` +
       `<div class="field"><label for="se${i}">To</label><input type="date" id="se${i}"></div>` +
-      `<div class="field f-mode"><label for="sm${i}">Then on to the next stop by</label><select id="sm${i}" class="s-mode"></select></div>` +
+      `<div class="field f-mode"><span class="lbl-s" id="sml${i}">Then on to the next stop by</span><div class="modes" role="radiogroup" aria-labelledby="sml${i}"></div></div>` +
       `<button type="button" class="rm" aria-label="Remove stop">×</button>`;
     const sel = row.querySelector(`#sp${i}`);
     const extra = parties.flatMap((p) => p.stops.map((x) => x.country)).concat(s.country ? [s.country] : []);
@@ -839,10 +852,21 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const ph = el("option", null, "Choose a country"); ph.value = ""; sel.append(ph);
     for (const c of opts) { const o = el("option", null, c); o.value = c; sel.append(o); }
     sel.value = s.country || "";
-    const ms = row.querySelector(`#sm${i}`);
-    for (const [k, v] of Object.entries(MODES)) { const o = el("option", null, v.label); o.value = k; ms.append(o); }
-    const none = el("option", null, "Other / not sure"); none.value = "other"; ms.append(none);
-    ms.value = s.mode || DEFAULT_MODE;
+    // travel mode: all choices shown at once as badges, same glyphs as the board
+    const mbox = row.querySelector(".modes");
+    row.dataset.mode = s.mode || DEFAULT_MODE;
+    for (const k of [...Object.keys(MODES), "other"]) {
+      const b = el("button", "mbtn"); b.type = "button"; b.setAttribute("role", "radio");
+      b.dataset.mode = k;
+      const badge = el("span", "b"); badge.innerHTML = modeSvg(k, 18);
+      b.append(badge, el("span", null, MODES[k] ? MODES[k].label : "Other"));
+      b.setAttribute("aria-checked", String(k === row.dataset.mode));
+      b.addEventListener("click", () => {
+        row.dataset.mode = k;
+        mbox.querySelectorAll(".mbtn").forEach((x) => x.setAttribute("aria-checked", String(x.dataset.mode === k)));
+      });
+      mbox.append(b);
+    }
     row.querySelector(`#sc${i}`).value = s.city || "";
     row.querySelector(`#ss${i}`).value = s.start || "";
     row.querySelector(`#se${i}`).value = s.end || "";
@@ -879,6 +903,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const used = new Set(parties.map((x) => x.color));
     formColor = p ? p.color : (COLORS.find((c) => !used.has(c)) || COLORS[0]);
     if (!p) renderSwatches();
+    $("stops").style.setProperty("--c", formColor);
     $("stops").innerHTML = "";
     (p ? p.stops : [{ city: "", country: HEADCOUNT_COUNTRY, start: "2027-03-05", end: "2027-03-07", mode: DEFAULT_MODE }]).forEach(addStopRow);
     $("fErr").textContent = "";
@@ -903,7 +928,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     for (const row of $("stops").querySelectorAll(".stop-edit")) {
       const city = row.querySelector('input[type="text"]').value.trim();
       const country = row.querySelector(".s-country").value;
-      const mode = row.querySelector(".s-mode").value;
+      const mode = row.dataset.mode || DEFAULT_MODE;
       const [st, en] = row.querySelectorAll('input[type="date"]');
       const start = st.value, end = en.value;
       if (!city && !country && !start && !end) continue;
