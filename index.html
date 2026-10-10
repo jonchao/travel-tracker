@@ -435,6 +435,11 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         <input id="adCode" type="password" autocomplete="off" maxlength="60" placeholder="Your admin code">
         <span class="help">Set in Firebase (config → admin → code). It's separate from the guest passcode.</span>
       </div>
+      <div class="field">
+        <label for="adPass">New guest passcode (optional)</label>
+        <input id="adPass" type="text" autocomplete="off" maxlength="60" placeholder="Leave blank to keep the current one">
+        <span class="help">Changing it asks everyone for the new passcode. All trips and key dates stay as they are.</span>
+      </div>
       <label class="switch-row" for="adRequire">
         <input type="checkbox" id="adRequire">
         <span><strong>Require the passcode to view and edit</strong><br>
@@ -489,6 +494,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 (() => {
@@ -1156,21 +1162,28 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 
   render();
 
-  // ---------- passcode gate: data lives at sites/{passcode}/...; the rules only open the right path ----------
+  // ---------- access: anonymous sign-in + passcode unlock; data always lives at trips/main ----------
   (() => {
-    let unsubs = [];
+    let unsubs = [], openMode = false, uid = null;
     function stopAll() { unsubs.forEach((u) => u()); unsubs = []; }
     function showLock(msg) {
       stopAll();
-      col = null; evCol = null; parties = []; events = []; loaded = false;
-      $("app").hidden = true; $("scrim").hidden = true; $("evScrim").hidden = true; $("lock").hidden = false;
+      parties = []; events = []; loaded = false;
+      $("app").hidden = true; $("scrim").hidden = true; $("evScrim").hidden = true; $("adScrim").hidden = true; $("lock").hidden = false;
       $("lockErr").textContent = msg || "";
       $("lockGo").disabled = false;
       setTimeout(() => $("lockCode").focus(), 0);
     }
-    if (!window.firebase) return showLock("Couldn't load the travel database. Check your connection and reload the page.");
+    if (!window.firebase || !firebase.auth) return showLock("Couldn't load the travel database. Check your connection and reload the page.");
     firebase.initializeApp(firebaseConfig);
     fsdb = firebase.firestore();
+    const auth = firebase.auth();
+    const site = fsdb.collection("trips").doc("main");
+    col = site.collection("parties");
+    evCol = site.collection("events");
+    const nowIso = () => new Date().toISOString();
+    const unlock = (code) => fsdb.collection("unlocks").doc(uid).set({ code, at: nowIso() });
+
     function parseStop(s) {
       if (!s) return null;
       const country = typeof s.country === "string" && s.country.trim() ? s.country.trim() : typeof s.place === "string" ? s.place.trim() : "";
@@ -1180,14 +1193,9 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       const mode = MODES[s.mode] || s.mode === "other" ? s.mode : DEFAULT_MODE;
       return { city, country: country.slice(0, 40), start: ok ? s.start : "", end: ok ? s.end : "", mode };
     }
-    let openMode = false, currentCode = null;
-    function connect(code) {
+    // Listen to the board. onFirstDenied runs if this browser isn't allowed in yet.
+    function subscribe(onFirstDenied) {
       stopAll();
-      currentCode = code;
-      $("lockGo").disabled = true; $("lockErr").textContent = "Checking…";
-      const site = fsdb.collection("sites").doc(code);
-      col = site.collection("parties");
-      evCol = site.collection("events");
       let first = true;
       unsubs.push(col.onSnapshot((snap) => {
         parties = snap.docs.map((d) => {
@@ -1198,16 +1206,15 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         loaded = true;
         if (first) {
           first = false;
-          if (!openMode) { try { localStorage.setItem("sitePass", code); } catch (_) {} }
           $("lockBtn").hidden = openMode;
           $("lock").hidden = true; $("app").hidden = false; $("addBtn").disabled = false;
           render(); centerOn(pinned); spinFlaps();
         } else render();
       }, (err) => {
-        if (err && err.code === "permission-denied") {
-          try { localStorage.removeItem("sitePass"); } catch (_) {}
-          showLock("That passcode isn't right. Check with Jon or Steph.");
-        } else showLock("Couldn't load travel plans. Check your connection and try again.");
+        const denied = err && err.code === "permission-denied";
+        if (first && denied && onFirstDenied) onFirstDenied();
+        else if (denied) showLock("The passcode has changed. Enter the new one to keep going.");
+        else showLock("Couldn't load travel plans. Check your connection and try again.");
       }));
       unsubs.push(evCol.onSnapshot((snap) => {
         eventsErr = false;
@@ -1224,39 +1231,49 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         } else render();
       }, () => { eventsErr = true; events = []; render(); }));
     }
-    $("lockForm").addEventListener("submit", (e) => {
+
+    // Start: sign in, read settings, try the board; fall back to a passcode remembered by the older version.
+    $("lockErr").textContent = "Checking…"; $("lockGo").disabled = true;
+    auth.signInAnonymously().then(async (cred) => {
+      uid = cred.user.uid;
+      try { const s = await fsdb.doc("config/settings").get(); openMode = s.exists && s.data().open === true; } catch (_) {}
+      subscribe(async () => {
+        let saved = null; try { saved = localStorage.getItem("sitePass"); } catch (_) {}
+        try { localStorage.removeItem("sitePass"); } catch (_) {}
+        if (saved) { try { await unlock(saved); return subscribe(() => showLock("")); } catch (_) {} }
+        showLock("");
+      });
+    }).catch(() => showLock("Couldn't connect to the travel database. Check your connection and reload the page."));
+
+    $("lockForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const code = $("lockCode").value.trim();
       if (!code) return $("lockErr").textContent = "Enter the passcode.";
-      if (code.includes("/") || code === "." || code === "..") return $("lockErr").textContent = "That passcode isn't right. Check with Jon or Steph.";
-      connect(code);
+      if (!uid) return $("lockErr").textContent = "Still connecting. Try again in a moment.";
+      $("lockGo").disabled = true; $("lockErr").textContent = "Checking…";
+      try {
+        await unlock(code);
+        $("lockCode").value = "";
+        subscribe(() => showLock("That passcode didn't work. Check with Jon or Steph."));
+      } catch (err) {
+        showLock(err && err.code === "permission-denied" ? "That passcode isn't right. Check with Jon or Steph." : "Couldn't check the passcode. Check your connection and try again.");
+      }
     });
-    $("lockBtn").addEventListener("click", () => {
-      try { localStorage.removeItem("sitePass"); } catch (_) {}
-      $("lockCode").value = ""; showLock("");
+    $("lockBtn").addEventListener("click", async () => {
+      try { await fsdb.collection("unlocks").doc(uid).delete(); } catch (_) {}
+      showLock("");
     });
-    // public settings decide whether the passcode screen is shown at all
-    function startWithSaved() {
-      let saved = null; try { saved = localStorage.getItem("sitePass"); } catch (_) {}
-      if (saved) { $("lockCode").value = saved; connect(saved); } else showLock("");
-    }
-    $("lockErr").textContent = "Checking…"; $("lockGo").disabled = true;
-    fsdb.doc("config/settings").get().then((snap) => {
-      const v = snap.exists ? snap.data() : {};
-      if (v.open === true && typeof v.publicCode === "string" && v.publicCode) { openMode = true; connect(v.publicCode); }
-      else startWithSaved();
-    }).catch(startWithSaved);
 
     // ---------- admin settings ----------
     function adHelpText() {
       $("adHelp").textContent = $("adRequire").checked
-        ? "On: guests see the passcode screen first, and only people with the passcode can see or change plans."
-        : "Off: anyone with the link goes straight to the board and can add or change plans. The passcode is still in place for when you switch it back on.";
+        ? "On: visitors see the passcode screen first. Only people with the passcode can see or change plans."
+        : "Off: anyone with the link goes straight to the board and can add or change plans.";
     }
     $("adRequire").addEventListener("change", adHelpText);
     $("adminBtn").addEventListener("click", () => {
       $("adRequire").checked = !openMode;
-      $("adCode").value = ""; $("adErr").textContent = "";
+      $("adCode").value = ""; $("adPass").value = ""; $("adErr").textContent = "";
       $("adStatus").textContent = openMode ? "Currently: open to anyone with the link" : "Currently: passcode required";
       adHelpText();
       $("adScrim").hidden = false;
@@ -1268,25 +1285,24 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("adScrim").hidden) closeAd(); });
     $("adForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const adminCode = $("adCode").value.trim();
+      const adminCode = $("adCode").value.trim(), newPass = $("adPass").value.trim(), require = $("adRequire").checked;
       if (!adminCode) return $("adErr").textContent = "Enter your admin code.";
-      if (!currentCode) return $("adErr").textContent = "Open the board first, then change settings.";
-      const require = $("adRequire").checked;
+      if (newPass && (newPass.length < 4 || newPass.includes("/"))) return $("adErr").textContent = "The new passcode needs at least 4 characters and no “/”.";
       $("adSave").disabled = true; $("adErr").textContent = "";
       try {
-        // the rules accept a settings change only alongside a proof record carrying the right admin code
-        const ts = firebase.firestore.FieldValue.serverTimestamp();
-        const b = fsdb.batch();
-        b.set(fsdb.doc("adminproof/latest"), { code: adminCode, at: ts });
-        b.set(fsdb.doc("config/settings"), require ? { open: false, at: ts } : { open: true, publicCode: currentCode, at: ts });
-        await b.commit();
+        try { await fsdb.collection("admins").doc(uid).set({ code: adminCode, at: nowIso() }); }
+        catch (err) { throw { code: err && err.code === "permission-denied" ? "bad-admin" : "net" }; }
+        await fsdb.doc("config/settings").set({ open: !require, at: nowIso() });
+        if (newPass) {
+          await fsdb.doc("config/edit").set({ code: newPass });
+          await unlock(newPass);   // keep this browser unlocked with the new passcode
+        }
         openMode = !require;
-        if (require) { try { localStorage.setItem("sitePass", currentCode); } catch (_) {} }
         $("lockBtn").hidden = openMode;
         closeAd();
       } catch (err) {
-        $("adErr").textContent = err && err.code === "permission-denied"
-          ? "That admin code isn't right, or the database rules haven't been updated yet."
+        $("adErr").textContent = err && err.code === "bad-admin" ? "That admin code isn't right."
+          : err && err.code === "permission-denied" ? "That change wasn't accepted. Check the admin code and try again."
           : "Couldn't save. Check your connection and try again.";
       } finally { $("adSave").disabled = false; }
     });
