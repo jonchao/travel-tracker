@@ -3,232 +3,274 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>J+S Wedding and Coordinated Travel</title>
+<title>Coordinated Travel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Karla:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
-/* Layout: bold title, then one Gantt card: sticky party/stop labels on the left, a day grid on the right
-   (faint tinted track per stop + solid party-colored bar), wedding day starred, headcount strip, then "who's where" for the selected day. */
+/* Layout: postcard header (airmail stripe, serif title), then the itinerary board: key dates drawer, party filters,
+   sticky party/stop labels + day grid with flight-path connectors, headcount strip; "who's where" ticket stubs below. */
 :root {
-  --bg: #f7f6fb;
-  --surface: #ffffff;
-  --line: #e3e1ec;
-  --line-soft: #efedf5;
-  --fg: #15131c;
-  --muted: #6b6878;
-  --star: #f2b705;
-  --star-soft: rgba(242,183,5,.13);
-  --welcome: #d6457f;
-  --welcome-soft: rgba(214,69,127,.08);
-  --weekend: rgba(21,19,28,.028);
-  --hover: rgba(80,70,140,.08);
-  --hover-line: #8c84c4;
-  --danger: #c43c3c;
-  --btn: #15131c;
-  --on-btn: #ffffff;
-  --track-a: .14;   /* tint strength for faint tracks */
-  --font: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --bg: #edf2f4;          /* pale sky / map paper */
+  --surface: #fffefb;     /* postcard stock */
+  --line: #d5dde3;
+  --line-soft: #e7ecef;
+  --fg: #18263b;          /* passport navy ink */
+  --muted: #5b6a7c;
+  --navy: #1b2f52;
+  --on-navy: #fffefb;
+  --red: #c8372d;         /* airmail red */
+  --blue: #1f4e9a;        /* airmail blue */
+  --weekend: rgba(24,38,59,.035);
+  --hover: rgba(31,78,154,.08);
+  --hover-line: #1f4e9a;
+  --danger: #b8322a;
+  --track-a: .16;
+  --font-display: "DM Serif Display", Georgia, "Times New Roman", serif;
+  --font-body: "Karla", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   --day-w: 32px;
-  --name-w: 190px;
+  --name-w: 196px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121118; --surface: #1a1922; --line: #2e2c3a; --line-soft: #23212d;
-    --fg: #eceaf4; --muted: #a09cb2; --star: #f5c33b; --star-soft: rgba(245,195,59,.12); --welcome: #f07aa8; --welcome-soft: rgba(240,122,168,.09);
-    --weekend: rgba(255,255,255,.025); --hover: rgba(160,150,230,.10); --hover-line: #a49ce0;
-    --danger: #ec7a7a; --btn: #eceaf4; --on-btn: #121118; --track-a: .2;
+    --bg: #0c1524; --surface: #132033; --line: #25364d; --line-soft: #1b2a3f;
+    --fg: #e7edf4; --muted: #93a3b8; --navy: #e7edf4; --on-navy: #0c1524;
+    --red: #ef6a5e; --blue: #79a2ea; --weekend: rgba(255,255,255,.025);
+    --hover: rgba(121,162,234,.12); --hover-line: #79a2ea; --danger: #ef7b70; --track-a: .22;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #121118; --surface: #1a1922; --line: #2e2c3a; --line-soft: #23212d;
-  --fg: #eceaf4; --muted: #a09cb2; --star: #f5c33b; --star-soft: rgba(245,195,59,.12); --welcome: #f07aa8; --welcome-soft: rgba(240,122,168,.09);
-  --weekend: rgba(255,255,255,.025); --hover: rgba(160,150,230,.10); --hover-line: #a49ce0;
-  --danger: #ec7a7a; --btn: #eceaf4; --on-btn: #121118; --track-a: .2;
+  --bg: #0c1524; --surface: #132033; --line: #25364d; --line-soft: #1b2a3f;
+  --fg: #e7edf4; --muted: #93a3b8; --navy: #e7edf4; --on-navy: #0c1524;
+  --red: #ef6a5e; --blue: #79a2ea; --weekend: rgba(255,255,255,.025);
+  --hover: rgba(121,162,234,.12); --hover-line: #79a2ea; --danger: #ef7b70; --track-a: .22;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { color-scheme: light; }
-body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.5; padding: 32px 16px 56px; }
+body {
+  margin: 0; background-color: var(--bg); color: var(--fg);
+  background-image: radial-gradient(var(--line) 1px, transparent 1.2px); background-size: 22px 22px;
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5; padding: 32px 16px 56px;
+}
 .wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.airmail { height: 6px; background: repeating-linear-gradient(-45deg, var(--red) 0 10px, transparent 10px 15px, var(--blue) 15px 25px, transparent 25px 30px); }
+.mono { font-family: var(--font-mono); }
 
 header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
-h1 { font-weight: 800; font-size: clamp(28px, 5vw, 46px); line-height: 1.08; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
-.sub { color: var(--muted); margin: 8px 0 0; }
-.sub strong { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
-.star { color: var(--star); }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--blue); margin: 0 0 6px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(34px, 6vw, 56px); line-height: 1.02; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 10px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.sub strong { color: var(--fg); font-weight: 700; }
+.sub .next { display: inline-flex; align-items: center; gap: 6px; }
+.sub .next svg { color: var(--ec); }
 
 button { font: inherit; cursor: pointer; }
-.btn { border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 9px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; }
+.btn { border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 14px; }
 .btn:hover { border-color: var(--muted); }
-.btn.primary { background: var(--btn); border-color: var(--btn); color: var(--on-btn); }
+.btn.primary { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--muted); padding-inline: 10px; }
+.btn.ghost:hover { color: var(--fg); }
 .btn.danger { color: var(--danger); border-color: transparent; background: transparent; padding-inline: 8px; }
-.btn.danger.confirm { background: var(--danger); color: var(--on-btn); }
+.btn.danger.confirm { background: var(--danger); color: var(--on-navy); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
-:focus-visible { outline: 2px solid var(--star); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
 .seg button { border: 0; background: transparent; color: var(--muted); padding: 6px 12px; font-size: 13px; font-weight: 600; }
 .seg button[aria-pressed="true"] { background: var(--line-soft); color: var(--fg); }
 
-/* ---------- Gantt ---------- */
-.chart-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-.chart-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+/* ---------- Board ---------- */
+.chart-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 0 var(--line-soft); }
+.chart-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.kd-toggle { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 8px; padding: 6px 12px; font-weight: 600; font-size: 14px; }
+.kd-toggle .ics { display: inline-flex; gap: 3px; }
+.kd-toggle .ics svg { color: var(--ec); }
+.kd-toggle .chev { transition: transform .15s; color: var(--muted); }
+.kd-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.kd-toggle .n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+
+.kd-panel { border-bottom: 1px solid var(--line); padding: 8px 10px 12px; background: color-mix(in srgb, var(--bg) 45%, var(--surface)); }
+.kd-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 8px; }
+.kd-item { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.kd-jump { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: 0; background: transparent; color: var(--fg); padding: 7px 8px; border-radius: 8px; text-align: left; }
+.kd-jump:hover { background: var(--hover); }
+.kd-jump .ic { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--ec); background: color-mix(in srgb, var(--ec) 14%, transparent); }
+.kd-jump .lb { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kd-jump .dt { font-family: var(--font-mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.kd-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 8px 0; }
+.kd-foot .help { margin: 0; }
+
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
-.flabel { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
-.fchip { border: 1.5px solid color-mix(in srgb, var(--c) 55%, transparent); border-radius: 999px; padding: 3px 11px; font-size: 13px; font-weight: 600; background: color-mix(in srgb, var(--c) 16%, transparent); color: color-mix(in srgb, var(--c) 78%, var(--fg)); }
+.flabel { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.fchip { border: 1.5px solid color-mix(in srgb, var(--c) 55%, transparent); border-radius: 6px; padding: 3px 10px; font-size: 13px; font-weight: 600; background: color-mix(in srgb, var(--c) 14%, transparent); color: color-mix(in srgb, var(--c) 75%, var(--fg)); }
 .fchip[aria-pressed="false"] { background: transparent; border-style: dashed; border-color: var(--line); color: var(--muted); text-decoration: line-through; }
 .fall { font-size: 13px; padding: 3px 10px; }
-.scroller { overflow-x: auto; overscroll-behavior-x: contain; }
+
+.scroller { overflow-x: auto; overscroll-behavior-x: contain; scroll-behavior: smooth; }
 .gantt { position: relative; min-width: max-content; padding-bottom: 4px; }
 .row { display: flex; position: relative; }
 .name { position: sticky; left: 0; z-index: 3; flex: 0 0 var(--name-w); width: var(--name-w); background: var(--surface); padding: 0 10px 0 18px; display: flex; align-items: center; gap: 6px; min-width: 0; }
 .track { position: relative; flex: 0 0 auto; z-index: 1; }
 
-.months { height: 28px; }
+.months { height: 30px; }
 .mlab { position: sticky; left: calc(var(--name-w) + 6px); }
-.months .track > div { position: absolute; top: 0; height: 28px; overflow: clip; white-space: nowrap; display: flex; align-items: center; padding-left: 6px; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; border-left: 1px solid var(--line); }
-.days { height: 46px; border-bottom: 1px solid var(--line); }
-.days .track > div { position: absolute; top: 0; width: var(--day-w); height: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--muted); }
-.days .track > div b { font-size: 13px; color: var(--fg); font-weight: 600; }
-.days .track > div.wed b { color: var(--fg); font-weight: 800; }
-.days .track > div.wed i { color: var(--star); font-size: 14px; }
-.days .track > div.wel i { color: var(--welcome); font-size: 14px; }
-.days .track > div.wel b { font-weight: 800; }
-.overlay .wel { background: var(--welcome-soft); }
-.welcome { color: var(--welcome); }
-.days .track > div i { font-style: normal; }
+.months .track > div { position: absolute; top: 0; height: 30px; overflow: clip; white-space: nowrap; display: flex; align-items: center; padding-left: 6px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; border-left: 1px dashed var(--line); }
+.days { height: 48px; border-bottom: 1px solid var(--line); }
+.days .track > div { position: absolute; top: 0; width: var(--day-w); height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-family: var(--font-mono); font-size: 10px; line-height: 1.1; color: var(--muted); }
+.days .track > div b { font-size: 13px; color: var(--fg); font-weight: 500; }
+.days .track > div.ev b { font-weight: 600; }
+.days .track > div.ev i { color: var(--ec); display: grid; place-items: center; height: 14px; }
+.days .track > div i { font-style: normal; text-transform: uppercase; }
 
-.party { height: 48px; }
-.party .name { overflow: visible; padding-top: 8px; }
-.party .track { margin-top: 8px; }
+.party { height: 50px; }
+.party .name { overflow: visible; padding-top: 10px; }
+.party .track { margin-top: 10px; }
 .party .chip { max-width: none; overflow: visible; }
-.chip { display: inline-flex; align-items: center; max-width: 100%; padding: 2px 10px; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--c) 16%, transparent); color: color-mix(in srgb, var(--c) 78%, var(--fg)); }
-.edit { flex: 0 0 auto; border: 0; background: transparent; color: var(--muted); width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 2px 9px; border-radius: 6px; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--c) 15%, transparent); color: color-mix(in srgb, var(--c) 72%, var(--fg)); }
+.chip small { font-weight: 500; opacity: .8; }
+.edit { flex: 0 0 auto; border: 0; background: transparent; color: var(--muted); width: 30px; height: 30px; border-radius: 6px; display: grid; place-items: center; }
 .edit:hover { background: var(--line-soft); color: var(--fg); }
 
-.stop { height: 30px; }
+.stop { height: 32px; }
 .stops-wrap { position: relative; }
 .links { position: absolute; top: 0; left: var(--name-w); z-index: 2; pointer-events: none; overflow: visible; }
 .links path { fill: none; stroke: var(--c); stroke-width: 2.5; stroke-dasharray: 0.5 4.5; stroke-linecap: round; }
 .links circle { fill: var(--surface); stroke: var(--c); stroke-width: 2; }
 .stop .name { padding-left: 28px; font-size: 14px; }
-.stop .name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stop .name small { color: var(--muted); font-size: 11px; margin-left: auto; white-space: nowrap; }
-.lane { position: absolute; top: 7px; height: 16px; left: 2px; right: 2px; border-radius: 999px; background: color-mix(in srgb, var(--c) calc(var(--track-a) * 100%), transparent); }
-.bar { position: absolute; top: 7px; height: 16px; border-radius: 999px; background: var(--c); transition: opacity .15s; }
-.bar-lbl { position: absolute; top: 5px; font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: none; transition: opacity .15s; }
+.stop .name .city { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; min-width: 0; }
+.stop .name .ctry { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
+.stop .name small.tbd { color: var(--muted); font-family: var(--font-mono); font-size: 10px; margin-left: auto; white-space: nowrap; text-transform: uppercase; letter-spacing: .06em; }
+.lane { position: absolute; top: 8px; height: 16px; left: 2px; right: 2px; border-radius: 999px; background: color-mix(in srgb, var(--c) calc(var(--track-a) * 100%), transparent); }
+.bar { position: absolute; top: 8px; height: 16px; border-radius: 999px; background: var(--c); transition: opacity .15s; }
+.bar-lbl { position: absolute; top: 7px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; pointer-events: none; transition: opacity .15s; }
 .stop.dim .bar { opacity: .25; }
 .stop.dim .bar-lbl { opacity: 0; }
 
-.count-row { height: 60px; border-top: 1px solid var(--line); margin-top: 12px; }
-.count-row .name { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.count-row { height: 62px; border-top: 1px solid var(--line); margin-top: 12px; }
+.count-row .name { font-family: var(--font-mono); font-size: 11px; color: var(--muted); font-weight: 500; letter-spacing: .12em; text-transform: uppercase; }
 .count-row .track > div { position: absolute; bottom: 6px; width: var(--day-w); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; height: 48px; }
 .count-row .track > div span { width: 16px; border-radius: 3px 3px 0 0; background: var(--line); min-height: 2px; }
-.count-row .track > div.wed span { background: var(--star); }
-.count-row .track > div b { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.count-row .track > div.ev span { background: color-mix(in srgb, var(--ec) 70%, transparent); }
+.count-row .track > div b { font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
 .count-row .track > div b.zero { color: var(--muted); font-weight: 400; }
 
 .overlay { position: absolute; top: 0; bottom: 0; left: var(--name-w); pointer-events: none; z-index: 0; }
 .overlay > div { position: absolute; top: 0; bottom: 0; width: var(--day-w); }
 .overlay .we { background: var(--weekend); }
-.overlay .wed { background: var(--star-soft); }
+.overlay .evband { background: color-mix(in srgb, var(--ec) 11%, transparent); }
 .overlay .hl { background: var(--hover); box-shadow: inset 1px 0 var(--hover-line), inset -1px 0 var(--hover-line); }
 
 .empty-row { height: 90px; }
 .empty-row .track { display: flex; align-items: center; padding-left: 16px; color: var(--muted); }
 
-/* ---------- Who's where ---------- */
+/* ---------- Who's where (ticket stubs) ---------- */
 .here { display: flex; flex-direction: column; gap: 10px; }
-.here h2 { font-weight: 800; font-size: 22px; letter-spacing: -.01em; margin: 0; }
+.here h2 { font-family: var(--font-display); font-weight: 400; font-size: 28px; margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.here h2 .evtag { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-body); font-size: 14px; font-weight: 700; color: var(--ec); background: color-mix(in srgb, var(--ec) 13%, transparent); padding: 3px 10px; border-radius: 6px; }
 .here p.hint { margin: 0; font-size: 13px; color: var(--muted); }
-.places { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.place { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
-.place h3 { margin: 0 0 8px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; display: flex; justify-content: space-between; }
-.place h3 span { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.places { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.place { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 12px 20px; min-width: 0; }
+.place::before { content: ""; position: absolute; left: 9px; top: 10px; bottom: 10px; border-left: 2px dashed var(--line); }
+.place h3 { margin: 0 0 8px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; display: flex; justify-content: space-between; }
+.place h3 span { color: var(--muted); font-weight: 500; }
 .place ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 
+/* ---------- Lock ---------- */
 .lock { min-height: calc(100vh - 88px); display: grid; place-items: center; }
-.lock form { width: min(400px, 100%); display: flex; flex-direction: column; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px 24px; }
-.lock h1 { font-size: 28px; }
+.lock .card { width: min(420px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 12px 40px rgba(24,38,59,.12); }
+.lock form { display: flex; flex-direction: column; gap: 14px; padding: 26px 24px 24px; }
+.lock h1 { font-size: 40px; }
 .lock p { margin: 0; color: var(--muted); }
 .lock .go { display: flex; gap: 8px; }
 .lock .go input { flex: 1; }
 .hdr-actions { display: flex; gap: 6px; align-items: center; }
 .notice { background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; padding: 14px 16px; color: var(--muted); }
 
-/* ---------- Modal ---------- */
-.scrim { position: fixed; inset: 0; background: rgba(10,8,20,.45); display: grid; place-items: center; padding: 16px; z-index: 50; overflow-y: auto; }
-.modal { width: min(560px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.25); max-height: calc(100vh - 32px); overflow-y: auto; }
-.modal h3 { font-weight: 800; font-size: 22px; margin: 0; }
+/* ---------- Modals ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(12,21,36,.5); display: grid; place-items: center; padding: 16px; z-index: 50; overflow-y: auto; }
+.modal { width: min(580px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.25); max-height: calc(100vh - 32px); }
+.modal .body { padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+.modal h3 { font-family: var(--font-display); font-weight: 400; font-size: 28px; margin: 0; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.field > label, .lbl { font-size: 13px; font-weight: 600; }
+.field > label, .lbl { font-size: 13px; font-weight: 700; }
 .help { font-size: 12px; color: var(--muted); }
-input[type="text"], input[type="date"], input[type="password"], select { font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); width: 100%; min-width: 0; }
+input[type="text"], input[type="date"], input[type="password"], select { font: inherit; font-size: 15px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); width: 100%; min-width: 0; min-height: 40px; }
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 .swatches button { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; background: var(--c); }
 .swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--c); }
 .swatches button:disabled { opacity: .2; cursor: not-allowed; }
+.icons { display: grid; grid-template-columns: repeat(auto-fill, 40px); gap: 6px; }
+.icons button { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); display: grid; place-items: center; }
+.icons button[aria-pressed="true"] { border-color: var(--ec); color: var(--ec); background: color-mix(in srgb, var(--ec) 14%, transparent); box-shadow: 0 0 0 1px var(--ec); }
 .stops { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
-.stop-edit { position: relative; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 36px; gap: 12px 10px; align-items: end; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.stop-edit { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 10px; padding: 14px 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.stop-edit .num { position: absolute; top: -9px; left: 12px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; background: var(--surface); color: var(--muted); padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); }
 .stop-edit .field { gap: 5px; }
 .stop-edit input, .stop-edit select { background: var(--surface); }
-.stop-edit .rm { border: 0; background: transparent; color: var(--muted); width: 36px; height: 38px; border-radius: 8px; font-size: 20px; line-height: 1; }
+.stop-edit .rm { position: absolute; top: 4px; right: 4px; border: 0; background: transparent; color: var(--muted); width: 32px; height: 32px; border-radius: 8px; font-size: 20px; line-height: 1; }
 .stop-edit .rm:hover { color: var(--danger); background: var(--line-soft); }
-.stop-edit label { font-size: 11px; color: var(--muted); font-weight: 600; }
+.stop-edit label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
+.stop-edit .f-city { padding-right: 30px; }
 .err { color: var(--danger); font-size: 13px; margin: 0; min-height: 1em; }
 .modal-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .modal-actions .right { display: flex; gap: 8px; margin-left: auto; }
+.two { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
 
 @media (max-width: 600px) {
-  :root { --name-w: 118px; --day-w: 30px; }
+  :root { --name-w: 124px; --day-w: 30px; }
   body { padding-block: 20px 40px; }
   header { align-items: stretch; }
   header > div:first-child { flex: 1 1 100%; }
-  #addBtn { flex: 1; }
   .hdr-actions { flex: 1 1 100%; }
+  #addBtn { flex: 1; }
   input[type="text"], input[type="date"], input[type="password"], select { font-size: 16px; }  /* stops iOS zooming on focus */
   .chart-bar { padding: 10px 12px; }
   .filters { padding: 8px 12px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .filters > * { flex: 0 0 auto; }
+  .kd-list { grid-template-columns: minmax(0, 1fr); }
   .chip { font-size: 13px; padding: 2px 8px; }
-  .stop .name { font-size: 13px; }
+  .stop .name { font-size: 13px; padding-left: 12px; }
+  .stop .name .ctry { display: none; }
+  .stop .name small.tbd { display: none; }
+  .name { padding-left: 10px; }
   .edit { width: 34px; height: 34px; }
   .scrim { padding: 0; place-items: end stretch; }
-  .modal { width: 100%; border-radius: 16px 16px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); max-height: 92vh; }
+  .modal { width: 100%; border-radius: 14px 14px 0 0; max-height: 92vh; }
+  .modal .body { padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); }
   .places { grid-template-columns: minmax(0, 1fr); }
-  .name { padding-left: 10px; }
-  .stop .name { padding-left: 14px; }
-  .stop .name small { display: none; }
-  .stop-edit { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 12px 12px 14px; }
-  .stop-edit .f-place { grid-column: 1 / -1; padding-right: 36px; }
-  .stop-edit .rm { position: absolute; top: 6px; right: 6px; height: 32px; width: 32px; }
+  .two { grid-template-columns: minmax(0, 1fr); }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .scroller { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
 
 <div class="lock" id="lock">
-  <form id="lockForm" novalidate>
-    <h1>J+S Wedding and Coordinated Travel</h1>
-    <p>Enter the passcode from Jon &amp; Steph to see and add travel plans.</p>
-    <div class="go">
-      <input id="lockCode" type="password" autocomplete="current-password" maxlength="60" placeholder="Passcode" aria-label="Passcode">
-      <button class="btn primary" id="lockGo" type="submit">Enter</button>
-    </div>
-    <p class="err" id="lockErr" role="alert"></p>
-  </form>
+  <div class="card">
+    <div class="airmail" aria-hidden="true"></div>
+    <form id="lockForm" novalidate>
+      <p class="eyebrow"><span data-icon="plane"></span>Jon &amp; Steph · Thailand 2027</p>
+      <h1>Coordinated Travel</h1>
+      <p>Enter the passcode from Jon &amp; Steph to see and add travel plans.</p>
+      <div class="go">
+        <input id="lockCode" type="password" autocomplete="current-password" maxlength="60" placeholder="Passcode" aria-label="Passcode">
+        <button class="btn primary" id="lockGo" type="submit">Enter</button>
+      </div>
+      <p class="err" id="lockErr" role="alert"></p>
+    </form>
+  </div>
 </div>
 
 <div class="wrap" id="app" hidden>
   <header>
     <div>
-      <h1>J+S Wedding and Coordinated Travel</h1>
-      <p class="sub" id="sub">Wedding in Thailand on <strong>March 6</strong> <span class="star">★</span></p>
+      <p class="eyebrow"><span data-icon="plane"></span>Jon &amp; Steph · Thailand 2027</p>
+      <h1>Coordinated Travel</h1>
+      <p class="sub" id="sub"></p>
     </div>
     <div class="hdr-actions">
       <button class="btn ghost" id="lockBtn" type="button">Lock</button>
@@ -239,11 +281,23 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   <div class="notice" id="notice" hidden></div>
 
   <section class="chart-card" aria-label="Travel timeline">
+    <div class="airmail" aria-hidden="true"></div>
     <div class="chart-bar">
-      <span>Tap a day to see who's where. <span class="star">★</span> wedding day · <span class="welcome">✦</span> welcome party</span>
+      <button type="button" class="kd-toggle" id="kdToggle" aria-expanded="false" aria-controls="kdPanel">
+        <span class="ics" id="kdIcons"></span>
+        Key dates <span class="n" id="kdCount"></span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
       <div class="seg" role="group" aria-label="Sort parties">
         <button type="button" id="sortArrive" aria-pressed="true">By arrival</button>
         <button type="button" id="sortName" aria-pressed="false">By name</button>
+      </div>
+    </div>
+    <div class="kd-panel" id="kdPanel" hidden>
+      <ul class="kd-list" id="kdList"></ul>
+      <div class="kd-foot">
+        <button type="button" class="btn ghost" id="kdAdd">+ Add a key date</button>
+        <p class="help" id="kdHelp">Click a date to jump to it on the chart.</p>
       </div>
     </div>
     <div class="filters" id="filters" role="group" aria-label="Show or hide parties" hidden></div>
@@ -259,35 +313,77 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   </section>
 </div>
 
+<datalist id="cityList"></datalist>
+
+<!-- travel dialog -->
 <div class="scrim" id="scrim" hidden>
   <form class="modal" id="form" novalidate>
-    <h3 id="formTitle">Add your travel</h3>
-    <div class="field">
-      <label for="fParty">Party</label>
-      <select id="fParty"></select>
-      <span class="help">Pick your party to update it, or start a new one.</span>
+    <div class="airmail" aria-hidden="true"></div>
+    <div class="body">
+      <h3 id="formTitle">Add your travel</h3>
+      <div class="field">
+        <label for="fParty">Party</label>
+        <select id="fParty"></select>
+        <span class="help">Pick your party to update it, or start a new one.</span>
+      </div>
+      <div class="field" id="nameField">
+        <label for="fName">Who's traveling</label>
+        <input id="fName" type="text" autocomplete="off" placeholder="e.g. Laura &amp; Robbie" maxlength="60">
+      </div>
+      <div class="field" id="colorField">
+        <span class="lbl">Color</span>
+        <span class="help">Colors already used by another party are greyed out.</span>
+        <div class="swatches" id="swatches" role="group" aria-label="Party color"></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Stops</span>
+        <span class="help">One card per city. Leave dates blank if you haven't decided yet.</span>
+        <div class="stops" id="stops"></div>
+        <div><button class="btn ghost" type="button" id="addStop">+ Add a stop</button></div>
+      </div>
+      <p class="err" id="fErr"></p>
+      <div class="modal-actions">
+        <button class="btn danger" type="button" id="fDelete" hidden>Delete</button>
+        <div class="right">
+          <button class="btn" type="button" id="fCancel">Cancel</button>
+          <button class="btn primary" type="submit" id="fSave">Save</button>
+        </div>
+      </div>
     </div>
-    <div class="field" id="nameField">
-      <label for="fName">Who's traveling</label>
-      <input id="fName" type="text" autocomplete="off" placeholder="e.g. Laura &amp; Robbie" maxlength="60">
-    </div>
-    <div class="field" id="colorField">
-      <span class="lbl">Color</span>
-      <span class="help">Colors already used by another party are greyed out.</span>
-      <div class="swatches" id="swatches" role="group" aria-label="Party color"></div>
-    </div>
-    <div class="field">
-      <span class="lbl">Stops</span>
-      <span class="help">One line per place. Leave dates blank if you haven't decided yet.</span>
-      <div class="stops" id="stops"></div>
-      <div><button class="btn ghost" type="button" id="addStop">+ Add a stop</button></div>
-    </div>
-    <p class="err" id="fErr"></p>
-    <div class="modal-actions">
-      <button class="btn danger" type="button" id="fDelete" hidden>Delete</button>
-      <div class="right">
-        <button class="btn" type="button" id="fCancel">Cancel</button>
-        <button class="btn primary" type="submit" id="fSave">Save</button>
+  </form>
+</div>
+
+<!-- key date dialog -->
+<div class="scrim" id="evScrim" hidden>
+  <form class="modal" id="evForm" novalidate>
+    <div class="airmail" aria-hidden="true"></div>
+    <div class="body">
+      <h3 id="evTitle">Add a key date</h3>
+      <div class="two">
+        <div class="field">
+          <label for="eLabel">Label</label>
+          <input id="eLabel" type="text" autocomplete="off" maxlength="40" placeholder="e.g. Rehearsal dinner">
+        </div>
+        <div class="field">
+          <label for="eDate">Date</label>
+          <input id="eDate" type="date">
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Icon</span>
+        <div class="icons" id="eIcons" role="group" aria-label="Icon"></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Color</span>
+        <div class="swatches" id="eColors" role="group" aria-label="Key date color"></div>
+      </div>
+      <p class="err" id="eErr"></p>
+      <div class="modal-actions">
+        <button class="btn danger" type="button" id="eDelete" hidden>Delete</button>
+        <div class="right">
+          <button class="btn" type="button" id="eCancel">Cancel</button>
+          <button class="btn primary" type="submit" id="eSave">Save</button>
+        </div>
       </div>
     </div>
   </form>
@@ -305,32 +401,89 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     messagingSenderId: "1010364448757",
     appId: "1:1010364448757:web:c21d9bed632b8f21d62abc"
   };
-  const WEDDING = "2027-03-06";
-  const WELCOME = "2027-03-05";  // welcome party, Friday
   const VIEW_START = "2027-02-22", VIEW_END = "2027-03-30";  // last week of Feb through end of March
+  const DEFAULT_FOCUS = "2027-03-06";
+  const HEADCOUNT_COUNTRY = "Thailand";
   const DAY = 864e5;
   const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const DOW = ["Su","Mo","Tu","We","Th","Fr","Sa"];
   const COLORS = ["#8b54f7", "#12b76a", "#1f4fe0", "#f2b705", "#f05252", "#ec4899", "#0ea5b7", "#f97316", "#64748b"];
+  const EV_COLORS = ["#e0a100", "#d6457f", "#c8372d", "#1f4e9a", "#0f8a7a", "#7b4bd6", "#e46b1f"];
   const COUNTRIES = ["Thailand", "Singapore", "Hong Kong", "Japan", "South Korea", "Taiwan", "Vietnam", "Cambodia", "Laos",
-    "Malaysia", "Indonesia", "Philippines", "China", "Macau", "India", "Sri Lanka", "Maldives", "Nepal", "Australia", "New Zealand"];
+    "Malaysia", "Indonesia", "Philippines", "China", "Macau", "India", "Sri Lanka", "Maldives", "Nepal", "Australia", "New Zealand",
+    "United States", "Canada", "United Kingdom"];
+  const ICONS = {
+    star:    { fill: 1, d: "M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" },
+    sparkle: { fill: 1, d: "M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" },
+    heart:   { fill: 1, d: "M12 20.5s-7.5-4.6-9.6-9.3C.9 7.6 3.3 4 6.9 4c2.1 0 3.9 1.2 5.1 3 1.2-1.8 3-3 5.1-3 3.6 0 6 3.6 4.5 7.2-2.1 4.7-9.6 9.3-9.6 9.3z" },
+    plane:   { fill: 1, d: "M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" },
+    ring:    { d: "M9 3h6l-3 4z M12 21a6 6 0 1 0 0-12 6 6 0 0 0 0 12z" },
+    glass:   { d: "M8 3h8l-.8 6.2a3.2 3.2 0 0 1-6.4 0z M12 12.5V20 M8.5 21h7" },
+    food:    { d: "M7 2v20 M4 2v6a3 3 0 0 0 6 0V2 M17 22V2c-2.5 1.5-3 5-3 8h3" },
+    music:   { d: "M9 18V5l11-2v13 M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z M20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" },
+    sun:     { d: "M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4" },
+    boat:    { d: "M3 17l2 4h14l2-4z M12 3v11 M12 4l6 8h-6" },
+    camera:  { d: "M3 8h4l2-3h6l2 3h4v11H3z M12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" },
+    pin:     { d: "M12 22s7-6.4 7-12a7 7 0 0 0-14 0c0 5.6 7 12 7 12z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" },
+    flag:    { d: "M5 21V4 M5 4h12l-2.5 4L17 12H5" },
+  };
   const $ = (id) => document.getElementById(id);
+  function icon(name, size) {
+    const ic = ICONS[name] || ICONS.star, s = size || 16;
+    return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="${ic.fill ? "currentColor" : "none"}" stroke="${ic.fill ? "none" : "currentColor"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ic.d}"/></svg>`;
+  }
+  document.querySelectorAll("[data-icon]").forEach((n) => { n.innerHTML = icon(n.dataset.icon, 14); });
 
   const toT = (s) => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d); };
   const fmt = (t) => { const d = new Date(t); return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate(); };
+  const fmtLong = (t) => { const d = new Date(t); return DOW[d.getUTCDay()] + ", " + MONTHS[d.getUTCMonth()] + " " + d.getUTCDate(); };
   const short = (t) => { const d = new Date(t); return (d.getUTCMonth() + 1) + "/" + d.getUTCDate(); };
   const isDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
   const isColor = (s) => typeof s === "string" && /^#[0-9a-fA-F]{6}$/.test(s);
-  const wedT = toT(WEDDING);
-  const welT = toT(WELCOME);
+  const placeLabel = (s) => s.city ? `${s.city}, ${s.country}` : s.country;
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  const now = new Date();
+  const todayT = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 
-  let parties = [];   // {id, name, color, stops:[{place, start, end}]}
+  let parties = [];   // {id, name, color, stops:[{city, country, start, end}]}
+  let events = [];    // {id, date, label, icon, color}
+  let eventsErr = false;
   let loaded = false;
   let sortBy = "arrive";
   let hiddenIds = new Set();
   try { hiddenIds = new Set(JSON.parse(localStorage.getItem("hiddenParties") || "[]")); } catch (_) {}
   const visible = () => parties.filter((p) => !hiddenIds.has(p.id));
   function saveHidden() { try { localStorage.setItem("hiddenParties", JSON.stringify([...hiddenIds])); } catch (_) {} }
+  let pinned = toT(DEFAULT_FOCUS), hovered = null, userPicked = false, focusFromEvents = false;
+  let editingId = null, editingEvId = null;
+  let col = null, evCol = null, fsdb = null;
+
+  const dated = (s) => isDate(s.start) && isDate(s.end);
+  const present = (s, day) => dated(s) && toT(s.start) <= day && day <= toT(s.end);
+  const firstDate = (p) => p.stops.filter(dated).map((s) => s.start).sort()[0] || "9999";
+  const evsOn = (t) => events.filter((e) => toT(e.date) === t);
+  const sortedEvents = () => events.slice().sort((a, b) => a.date.localeCompare(b.date) || a.label.localeCompare(b.label));
+  const nextEvent = () => sortedEvents().find((e) => toT(e.date) >= todayT);
+
+  function updateSub() {
+    const box = $("sub"); box.innerHTML = "";
+    const nx = nextEvent();
+    if (nx) {
+      const days = Math.round((toT(nx.date) - todayT) / DAY);
+      const s = el("span", "next"); s.style.setProperty("--ec", nx.color);
+      s.innerHTML = icon(nx.icon, 15);
+      s.append(document.createTextNode("Next up: "));
+      s.append(el("strong", null, nx.label));
+      s.append(document.createTextNode(` · ${fmt(toT(nx.date))} · ${days === 0 ? "today" : days === 1 ? "tomorrow" : "in " + days + " days"}`));
+      box.append(s);
+    }
+    if (loaded && parties.length) {
+      const s = el("span"); s.append(el("strong", null, String(parties.length)), document.createTextNode(parties.length === 1 ? " party traveling" : " parties traveling"));
+      if (nx) box.append(el("span", null, "·"));
+      box.append(s);
+    }
+  }
+
   function renderFilters() {
     const box = $("filters"); box.innerHTML = "";
     box.hidden = !parties.length;
@@ -348,26 +501,38 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     t.addEventListener("click", () => { hiddenIds = anyHidden ? new Set() : new Set(parties.map((p) => p.id)); saveHidden(); render(); });
     box.append(t);
   }
-  let pinned = wedT, hovered = null, userPicked = false;
-  let editingId = null;
-  let col = null, fsdb = null;
 
-  const dated = (s) => isDate(s.start) && isDate(s.end);
-  const present = (s, day) => dated(s) && toT(s.start) <= day && day <= toT(s.end);
-  const firstDate = (p) => p.stops.filter(dated).map((s) => s.start).sort()[0] || "9999";
-
-  const now = new Date();
-  const daysLeft = Math.round((wedT - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / DAY);
-  function updateSub() {
-    const parts = [`Welcome party <strong>March 5</strong> <span class="welcome">✦</span>`, `Wedding <strong>March 6</strong> <span class="star">★</span>`];
-    if (daysLeft > 0) parts.push(`<strong>${daysLeft}</strong> days to go`);
-    if (loaded && parties.length) parts.push(`<strong>${parties.length}</strong> ${parties.length === 1 ? "party" : "parties"} traveling`);
-    $("sub").innerHTML = parts.join(" · ");
+  // ---------- key dates drawer ----------
+  function renderKeyDates() {
+    const list = sortedEvents();
+    const ics = $("kdIcons"); ics.innerHTML = "";
+    for (const e of list.slice(0, 3)) { const s = el("span"); s.style.setProperty("--ec", e.color); s.style.color = "var(--ec)"; s.innerHTML = icon(e.icon, 14); ics.append(s); }
+    $("kdCount").textContent = list.length ? "(" + list.length + ")" : "";
+    const ul = $("kdList"); ul.innerHTML = "";
+    for (const e of list) {
+      const li = el("li", "kd-item"); li.style.setProperty("--ec", e.color);
+      const b = el("button", "kd-jump"); b.type = "button";
+      const ic = el("span", "ic"); ic.innerHTML = icon(e.icon, 15);
+      b.append(ic, el("span", "lb", e.label), el("span", "dt", fmtLong(toT(e.date))));
+      b.addEventListener("click", () => { jumpTo(toT(e.date)); setPanel(false); });
+      const ed = el("button", "edit"); ed.type = "button"; ed.setAttribute("aria-label", "Edit " + e.label);
+      ed.innerHTML = PENCIL;
+      ed.addEventListener("click", () => openEvForm(e));
+      li.append(b, ed); ul.append(li);
+    }
+    $("kdHelp").textContent = eventsErr ? "Key dates couldn't load. The database rules may need updating."
+      : list.length ? "Click a date to jump to it on the chart." : "No key dates yet. Add the wedding, welcome party, or anything else people should plan around.";
   }
+  function setPanel(open) {
+    $("kdPanel").hidden = !open;
+    $("kdToggle").setAttribute("aria-expanded", String(open));
+  }
+  $("kdToggle").addEventListener("click", () => setPanel($("kdPanel").hidden));
 
   function range() {
     let lo = toT(VIEW_START), hi = toT(VIEW_END);
     for (const p of visible()) for (const s of p.stops) if (dated(s)) { lo = Math.min(lo, toT(s.start) - DAY); hi = Math.max(hi, toT(s.end) + DAY); }
+    for (const e of events) { lo = Math.min(lo, toT(e.date) - DAY); hi = Math.max(hi, toT(e.date) + DAY); }
     return { start: lo, end: hi };
   }
   function sorted() {
@@ -376,11 +541,12 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     else l.sort((a, b) => firstDate(a).localeCompare(firstDate(b)) || a.name.localeCompare(b.name));
     return l;
   }
-  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  const PENCIL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
   function render() {
     updateSub();
     renderFilters();
+    renderKeyDates();
     const css = getComputedStyle(document.documentElement);
     const W = parseFloat(css.getPropertyValue("--day-w")) || 32;
     const { start, end } = range();
@@ -391,11 +557,11 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 
     const ov = el("div", "overlay"); ov.style.width = trackW + "px";
     for (let i = 0; i < nDays; i++) {
-      const dow = new Date(start + i * DAY).getUTCDay();
+      const t = start + i * DAY, dow = new Date(t).getUTCDay();
       if (dow === 0 || dow === 6) { const c = el("div", "we"); c.style.left = i * W + "px"; ov.appendChild(c); }
+      const evs = evsOn(t);
+      if (evs.length) { const c = el("div", "evband"); c.style.left = i * W + "px"; c.style.setProperty("--ec", evs[0].color); ov.appendChild(c); }
     }
-    const wl = el("div", "wel"); wl.style.left = Math.round((welT - start) / DAY) * W + "px"; ov.appendChild(wl);
-    const wc = el("div", "wed"); wc.style.left = Math.round((wedT - start) / DAY) * W + "px"; ov.appendChild(wc);
     const hl = el("div", "hl"); hl.id = "hl"; hl.hidden = true; ov.appendChild(hl);
     g.appendChild(ov);
 
@@ -412,40 +578,45 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       const span = j - i;
       const lab = el("div");
       lab.append(el("span", "mlab", span >= 3 ? MONTHS[mo] + " " + d.getUTCFullYear() : span === 2 ? MONTHS[mo] : ""));
-      lab.style.left = i * W + "px"; lab.style.width = (j - i) * W + "px";
+      lab.style.left = i * W + "px"; lab.style.width = span * W + "px";
       if (i === 0) lab.style.borderLeft = "0";
       m.tr.appendChild(lab); i = j;
     }
     const dh = mkRow("days");
     for (let k = 0; k < nDays; k++) {
-      const t = start + k * DAY, d = new Date(t), wed = t === wedT, wel = t === welT;
-      const c = el("div", wed ? "wed" : wel ? "wel" : null); c.style.left = k * W + "px";
-      c.append(el("i", null, wed ? "★" : wel ? "✦" : DOW[d.getUTCDay()]), el("b", null, String(d.getUTCDate())));
+      const t = start + k * DAY, d = new Date(t), evs = evsOn(t);
+      const c = el("div", evs.length ? "ev" : null); c.style.left = k * W + "px";
+      const top = el("i");
+      if (evs.length) { c.style.setProperty("--ec", evs[0].color); top.innerHTML = icon(evs[0].icon, 14); c.title = evs.map((e) => e.label).join(" · "); }
+      else top.textContent = DOW[d.getUTCDay()];
+      c.append(top, el("b", null, String(d.getUTCDate())));
       dh.tr.appendChild(c);
     }
 
     const list = sorted();
     if (!list.length) {
       const e = mkRow("empty-row");
-      e.tr.textContent = !loaded ? "Loading travel plans…" : parties.length ? "All parties are hidden. Turn them back on with the buttons above." : "No travel added yet. Use “Add your travel” to put your party on the chart.";
+      e.tr.textContent = !loaded ? "Loading travel plans…" : parties.length ? "All parties are hidden. Turn them back on with the buttons above." : "No travel added yet. Use “Add your travel” to put your party on the board.";
     }
     for (const p of list) {
       const hdr = mkRow("party");
       hdr.r.style.setProperty("--c", p.color);
       const chip = el("span", "chip", p.name); chip.title = p.name;
       const eb = el("button", "edit"); eb.type = "button"; eb.setAttribute("aria-label", "Edit " + p.name);
-      eb.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+      eb.innerHTML = PENCIL;
       eb.addEventListener("click", () => openForm(p));
       hdr.n.append(chip, eb);
 
       const wrap = el("div", "stops-wrap"); g.appendChild(wrap);
-      const ROW_H = 30, ends = [];
+      const ROW_H = 32, ends = [];
       p.stops.forEach((s, idx) => {
         const r = mkRow("stop", wrap);
         r.r.style.setProperty("--c", p.color);
         r.r._stop = s;
-        r.n.append(el("span", null, s.place));
-        if (!dated(s)) r.n.append(el("small", null, "dates TBD"));
+        r.n.title = placeLabel(s);
+        r.n.append(el("span", "city", s.city || s.country));
+        if (s.city) r.n.append(el("span", "ctry", s.country));
+        if (!dated(s)) r.n.append(el("small", "tbd", "TBD"));
         r.tr.appendChild(el("div", "lane"));
         if (dated(s)) {
           const a = toT(s.start), b = toT(s.end);
@@ -453,7 +624,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
           const w = (Math.round((b - a) / DAY) + 1) * W - 6;
           const bar = el("div", "bar");
           bar.style.left = x + "px"; bar.style.width = w + "px";
-          bar.title = `${p.name} · ${s.place}: ${fmt(a)} – ${fmt(b)}`;
+          bar.title = `${p.name} · ${placeLabel(s)}: ${fmt(a)} – ${fmt(b)}`;
           r.tr.appendChild(bar);
           const lbl = el("span", "bar-lbl", `${short(a)}–${short(b)}`);
           lbl.style.left = (x + w + 6) + "px";
@@ -461,7 +632,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
           ends.push({ start: s.start, x0: x, x1: x + w, y: idx * ROW_H + ROW_H / 2 });
         }
       });
-      // dotted connectors from the end of one stop to the start of the next
+      // dotted flight paths from the end of one stop to the start of the next
       ends.sort((u, v) => u.start.localeCompare(v.start));
       if (ends.length > 1) {
         const NS = "http://www.w3.org/2000/svg";
@@ -474,7 +645,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
           if (A.y === B.y) continue;
           let xa = A.x1 - 4, xb = B.x0 + 4, d;
           if (B.x0 < A.x1) {
-            // dates overlap (e.g. fly out the same day): straight vertical line through the shared days
+            // dates overlap (fly out the same day): straight vertical line through the shared days
             xa = xb = Math.round((Math.max(A.x0, B.x0) + Math.min(A.x1, B.x1)) / 2);
             d = `M${xa},${A.y} V${B.y}`;
           } else {
@@ -495,15 +666,17 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     }
 
     const cr = mkRow("count-row");
-    cr.n.textContent = "In Thailand";
+    cr.n.textContent = "In " + HEADCOUNT_COUNTRY;
     const counts = [];
     for (let k = 0; k < nDays; k++) {
       const day = start + k * DAY;
-      counts.push(visible().filter((p) => p.stops.some((s) => /thai/i.test(s.place) && present(s, day))).length);
+      counts.push(visible().filter((p) => p.stops.some((s) => s.country === HEADCOUNT_COUNTRY && present(s, day))).length);
     }
     const max = Math.max(1, ...counts);
     counts.forEach((n, k) => {
-      const c = el("div", start + k * DAY === wedT ? "wed" : null); c.style.left = k * W + "px";
+      const evs = evsOn(start + k * DAY);
+      const c = el("div", evs.length ? "ev" : null); c.style.left = k * W + "px";
+      if (evs.length) c.style.setProperty("--ec", evs[0].color);
       const s = el("span"); s.style.height = Math.round((n / max) * 28) + "px";
       c.append(s, el("b", n ? null : "zero", String(n)));
       cr.tr.appendChild(c);
@@ -522,23 +695,45 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const dimOn = hovered != null || userPicked;
     document.querySelectorAll("#gantt .stop").forEach((r) => r.classList.toggle("dim", dimOn && !!r._stop && dated(r._stop) && !present(r._stop, day)));
 
-    // who's where
-    const byPlace = new Map();
+    // who's where, grouped by country
+    const byCountry = new Map();
     for (const p of sorted()) for (const s of p.stops) if (present(s, day)) {
-      if (!byPlace.has(s.place)) byPlace.set(s.place, []);
-      if (!byPlace.get(s.place).includes(p)) byPlace.get(s.place).push(p);
+      if (!byCountry.has(s.country)) byCountry.set(s.country, []);
+      const arr = byCountry.get(s.country);
+      if (!arr.some((x) => x.p === p)) arr.push({ p, city: s.city });
     }
-    const places = [...byPlace.entries()].sort((a, b) => (/thai/i.test(b[0]) - /thai/i.test(a[0])) || b[1].length - a[1].length);
-    $("hereTitle").textContent = (day === wedT ? "★ Wedding day, " : day === welT ? "✦ Welcome party, " : "") + fmt(day) + ": who's where";
-    $("hereHint").textContent = places.length ? "Hover or tap another day on the chart to change it." : "Nobody has a stop on this day yet.";
+    const groups = [...byCountry.entries()].sort((a, b) => ((b[0] === HEADCOUNT_COUNTRY) - (a[0] === HEADCOUNT_COUNTRY)) || b[1].length - a[1].length);
+    const title = $("hereTitle"); title.innerHTML = "";
+    for (const e of evsOn(day)) {
+      const t = el("span", "evtag"); t.style.setProperty("--ec", e.color); t.innerHTML = icon(e.icon, 14); t.append(document.createTextNode(e.label));
+      title.append(t);
+    }
+    title.append(document.createTextNode(fmtLong(day) + ": who's where"));
+    $("hereHint").textContent = groups.length ? "Hover or tap another day on the board to change it." : "Nobody has a stop on this day yet.";
     const box = $("places"); box.innerHTML = "";
-    for (const [place, ps] of places) {
+    for (const [country, ps] of groups) {
       const card = el("div", "place");
-      const h = el("h3", null, place); h.append(el("span", null, String(ps.length)));
+      const h = el("h3", null, country); h.append(el("span", null, String(ps.length)));
       const ul = el("ul");
-      for (const p of ps) { const li = el("li"); const c = el("span", "chip", p.name); c.style.setProperty("--c", p.color); li.append(c); ul.append(li); }
+      for (const { p, city } of ps) {
+        const li = el("li"); const c = el("span", "chip", p.name); c.style.setProperty("--c", p.color);
+        if (city) c.append(el("small", null, city));
+        li.append(c); ul.append(li);
+      }
       card.append(h, ul); box.append(card);
     }
+  }
+
+  function centerOn(t) {
+    const meta = $("gantt")._meta, sc = $("scroller"); if (!meta) return;
+    const nameW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--name-w")) || 0;
+    const x = ((t - meta.start) / DAY) * meta.W;
+    if (sc.scrollWidth > sc.clientWidth) sc.scrollLeft = Math.max(0, x - (sc.clientWidth - nameW) / 2);
+  }
+  function jumpTo(t) {
+    pinned = t; userPicked = true; hovered = null;
+    applyFocus(); centerOn(t);
+    $("scroller").closest(".chart-card").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function dayFromEvent(e) {
@@ -570,7 +765,14 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   $("sortName").addEventListener("click", () => setSort("name"));
   try { if (localStorage.getItem("sortBy") === "name") setSort("name", true); } catch (_) {}
 
-  // ---------- form ----------
+  function friendly(err) {
+    const c = err && err.code;
+    if (c === "permission-denied") return "That change wasn't accepted. If the passcode changed, click Lock and enter the new one.";
+    if (c === "unavailable" || c === "deadline-exceeded") return "Couldn't reach the server. Check your connection and try again.";
+    return "Couldn't save. Please try again.";
+  }
+
+  // ---------- travel form ----------
   let formColor = COLORS[0], deleteArmed = false, stopSeq = 0;
   function renderSwatches() {
     const box = $("swatches"); box.innerHTML = "";
@@ -584,24 +786,34 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       box.append(b);
     });
   }
+  function refreshCityList() {
+    const dl = $("cityList"); dl.innerHTML = "";
+    const cities = [...new Set(parties.flatMap((p) => p.stops.map((s) => s.city)).filter(Boolean))].sort();
+    for (const c of cities) { const o = el("option"); o.value = c; dl.append(o); }
+  }
+  function renumberStops() { $("stops").querySelectorAll(".stop-edit .num").forEach((n, i) => { n.textContent = "Stop " + (i + 1); }); }
   function addStopRow(s) {
     const i = ++stopSeq;
     const row = el("div", "stop-edit");
     row.innerHTML =
-      `<div class="field f-place"><label for="sp${i}">Country</label><select id="sp${i}"></select></div>` +
+      `<span class="num"></span>` +
+      `<div class="field f-city"><label for="sc${i}">City</label><input type="text" id="sc${i}" list="cityList" maxlength="40" placeholder="e.g. Bangkok" autocomplete="off"></div>` +
+      `<div class="field"><label for="sp${i}">Country</label><select id="sp${i}"></select></div>` +
       `<div class="field"><label for="ss${i}">From</label><input type="date" id="ss${i}"></div>` +
       `<div class="field"><label for="se${i}">To</label><input type="date" id="se${i}"></div>` +
       `<button type="button" class="rm" aria-label="Remove stop">×</button>`;
     const sel = row.querySelector(`#sp${i}`);
-    const extra = parties.flatMap((p) => p.stops.map((x) => x.place)).concat(s.place ? [s.place] : []);
+    const extra = parties.flatMap((p) => p.stops.map((x) => x.country)).concat(s.country ? [s.country] : []);
     const opts = [...new Set(COUNTRIES.concat(extra))];
     const ph = el("option", null, "Choose a country"); ph.value = ""; sel.append(ph);
     for (const c of opts) { const o = el("option", null, c); o.value = c; sel.append(o); }
-    sel.value = s.place || "";
+    sel.value = s.country || "";
+    row.querySelector(`#sc${i}`).value = s.city || "";
     row.querySelector(`#ss${i}`).value = s.start || "";
     row.querySelector(`#se${i}`).value = s.end || "";
-    row.querySelector(".rm").addEventListener("click", () => row.remove());
+    row.querySelector(".rm").addEventListener("click", () => { row.remove(); renumberStops(); });
     $("stops").append(row);
+    renumberStops();
   }
   function fillParties(sel) {
     const box = $("fParty"); box.innerHTML = "";
@@ -612,12 +824,12 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     box.value = sel || "__new";
   }
   $("fParty").addEventListener("change", () => {
-    const id = $("fParty").value;
-    const p = parties.find((x) => x.id === id) || null;
+    const p = parties.find((x) => x.id === $("fParty").value) || null;
     fillForm(p);
     if (!p) $("fName").focus();
   });
   function openForm(p) {
+    refreshCityList();
     fillParties(p ? p.id : null);
     fillForm(p);
     $("scrim").hidden = false;
@@ -633,25 +845,16 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     formColor = p ? p.color : (COLORS.find((c) => !used.has(c)) || COLORS[0]);
     if (!p) renderSwatches();
     $("stops").innerHTML = "";
-    (p ? p.stops : [{ place: "Thailand", start: "2027-03-05", end: "2027-03-07" }]).forEach(addStopRow);
+    (p ? p.stops : [{ city: "", country: HEADCOUNT_COUNTRY, start: "2027-03-05", end: "2027-03-07" }]).forEach(addStopRow);
     $("fErr").textContent = "";
     $("fDelete").hidden = !p; disarm();
   }
-
   function closeForm() { $("scrim").hidden = true; editingId = null; }
   function disarm() { deleteArmed = false; $("fDelete").textContent = "Delete"; $("fDelete").classList.remove("confirm"); }
   $("addStop").addEventListener("click", () => addStopRow({}));
   $("fCancel").addEventListener("click", closeForm);
   $("scrim").addEventListener("click", (e) => { if (e.target === $("scrim")) closeForm(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("scrim").hidden) closeForm(); });
   $("addBtn").addEventListener("click", () => openForm(null));
-
-  function friendly(err) {
-    const c = err && err.code;
-    if (c === "permission-denied") return "That change wasn't accepted. If the passcode changed, click Lock and enter the new one.";
-    if (c === "unavailable" || c === "deadline-exceeded") return "Couldn't reach the server. Check your connection and try again.";
-    return "Couldn't save. Please try again.";
-  }
 
   $("form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -660,16 +863,19 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const color = existing ? existing.color : formColor;
     if (!name) return $("fErr").textContent = "Add a name so people know who's who.";
     const dup = !existing && parties.find((x) => x.name.toLowerCase() === name.toLowerCase());
-    if (dup) return $("fErr").textContent = `${dup.name} is already on the chart. Pick them from the Party list to update their trip.`;
+    if (dup) return $("fErr").textContent = `${dup.name} is already on the board. Pick them from the Party list to update their trip.`;
     const stops = [];
     for (const row of $("stops").querySelectorAll(".stop-edit")) {
-      const pl = row.querySelector("select"), [st, en] = row.querySelectorAll("input");
-      const place = pl.value.trim(), start = st.value, end = en.value;
-      if (!place && !start && !end) continue;
-      if (!place) return $("fErr").textContent = "Choose a country for each stop.";
-      if ((start && !end) || (!start && end)) return $("fErr").textContent = `Add both dates for ${place}, or leave both blank.`;
-      if (start && end < start) return $("fErr").textContent = `The dates for ${place} end before they start.`;
-      stops.push({ place, start, end });
+      const city = row.querySelector('input[type="text"]').value.trim();
+      const country = row.querySelector("select").value;
+      const [st, en] = row.querySelectorAll('input[type="date"]');
+      const start = st.value, end = en.value;
+      if (!city && !country && !start && !end) continue;
+      const where = city || country || "this stop";
+      if (!country) return $("fErr").textContent = `Choose a country for ${where}.`;
+      if ((start && !end) || (!start && end)) return $("fErr").textContent = `Add both dates for ${where}, or leave both blank.`;
+      if (start && end < start) return $("fErr").textContent = `The dates for ${where} end before they start.`;
+      stops.push({ city, country, start, end });
     }
     if (!stops.length) return $("fErr").textContent = "Add at least one stop.";
     if (!col) return;
@@ -687,23 +893,79 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     try { await col.doc(editingId).delete(); closeForm(); } catch (err) { $("fErr").textContent = friendly(err); disarm(); }
   });
 
+  // ---------- key date form ----------
+  let evIcon = "star", evColor = EV_COLORS[0], evDeleteArmed = false;
+  function renderEvPickers() {
+    const ib = $("eIcons"); ib.innerHTML = ""; ib.style.setProperty("--ec", evColor);
+    for (const name of Object.keys(ICONS)) {
+      const b = el("button"); b.type = "button"; b.innerHTML = icon(name, 18);
+      b.setAttribute("aria-label", name); b.setAttribute("aria-pressed", String(name === evIcon));
+      b.addEventListener("click", () => { evIcon = name; renderEvPickers(); });
+      ib.append(b);
+    }
+    const cb = $("eColors"); cb.innerHTML = "";
+    EV_COLORS.forEach((c, i) => {
+      const b = el("button"); b.type = "button"; b.style.setProperty("--c", c);
+      b.setAttribute("aria-label", "Color " + (i + 1)); b.setAttribute("aria-pressed", String(c === evColor));
+      b.addEventListener("click", () => { evColor = c; renderEvPickers(); });
+      cb.append(b);
+    });
+  }
+  function openEvForm(e) {
+    editingEvId = e ? e.id : null;
+    $("evTitle").textContent = e ? "Edit key date" : "Add a key date";
+    $("eLabel").value = e ? e.label : "";
+    $("eDate").value = e ? e.date : DEFAULT_FOCUS;
+    evIcon = e ? e.icon : "star"; evColor = e ? e.color : EV_COLORS[0];
+    renderEvPickers();
+    $("eErr").textContent = "";
+    $("eDelete").hidden = !e; evDisarm();
+    $("evScrim").hidden = false;
+    setTimeout(() => $("eLabel").focus(), 0);
+  }
+  function closeEvForm() { $("evScrim").hidden = true; editingEvId = null; }
+  function evDisarm() { evDeleteArmed = false; $("eDelete").textContent = "Delete"; $("eDelete").classList.remove("confirm"); }
+  $("kdAdd").addEventListener("click", () => openEvForm(null));
+  $("eCancel").addEventListener("click", closeEvForm);
+  $("evScrim").addEventListener("click", (e) => { if (e.target === $("evScrim")) closeEvForm(); });
+  $("evForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const label = $("eLabel").value.trim(), date = $("eDate").value;
+    if (!label) return $("eErr").textContent = "Give the date a short label, like “Welcome party”.";
+    if (!isDate(date)) return $("eErr").textContent = "Pick a date.";
+    if (!evCol) return;
+    $("eSave").disabled = true;
+    try {
+      const data = { label, date, icon: evIcon, color: evColor, updatedAt: new Date().toISOString() };
+      if (editingEvId) await evCol.doc(editingEvId).set(data); else await evCol.add(data);
+      closeEvForm();
+    } catch (err) { $("eErr").textContent = friendly(err); }
+    finally { $("eSave").disabled = false; }
+  });
+  $("eDelete").addEventListener("click", async () => {
+    if (!evDeleteArmed) { evDeleteArmed = true; $("eDelete").textContent = "Confirm delete"; $("eDelete").classList.add("confirm"); return; }
+    if (!evCol || !editingEvId) return;
+    try { await evCol.doc(editingEvId).delete(); closeEvForm(); } catch (err) { $("eErr").textContent = friendly(err); evDisarm(); }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!$("evScrim").hidden) closeEvForm();
+    else if (!$("scrim").hidden) closeForm();
+    else if (!$("kdPanel").hidden) setPanel(false);
+  });
   window.addEventListener("resize", () => { clearTimeout(window._rt); window._rt = setTimeout(render, 120); });
 
-  function centerWedding() {
-    const meta = $("gantt")._meta, sc = $("scroller"); if (!meta) return;
-    const nameW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--name-w")) || 0;
-    const x = ((wedT - meta.start) / DAY) * meta.W;
-    if (sc.scrollWidth > sc.clientWidth) sc.scrollLeft = Math.max(0, x - (sc.clientWidth - nameW) / 2);
-  }
-  render(); centerWedding();
+  render();
 
-  // ---------- passcode gate: data lives at sites/{passcode}/parties; the rules only open the right path ----------
+  // ---------- passcode gate: data lives at sites/{passcode}/...; the rules only open the right path ----------
   (() => {
-    let unsub = null;
+    let unsubs = [];
+    function stopAll() { unsubs.forEach((u) => u()); unsubs = []; }
     function showLock(msg) {
-      if (unsub) { unsub(); unsub = null; }
-      col = null; parties = []; loaded = false;
-      $("app").hidden = true; $("scrim").hidden = true; $("lock").hidden = false;
+      stopAll();
+      col = null; evCol = null; parties = []; events = []; loaded = false;
+      $("app").hidden = true; $("scrim").hidden = true; $("evScrim").hidden = true; $("lock").hidden = false;
       $("lockErr").textContent = msg || "";
       $("lockGo").disabled = false;
       setTimeout(() => $("lockCode").focus(), 0);
@@ -711,20 +973,25 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     if (!window.firebase) return showLock("Couldn't load the travel database. Check your connection and reload the page.");
     firebase.initializeApp(firebaseConfig);
     fsdb = firebase.firestore();
+    function parseStop(s) {
+      if (!s) return null;
+      const country = typeof s.country === "string" && s.country.trim() ? s.country.trim() : typeof s.place === "string" ? s.place.trim() : "";
+      if (!country) return null;
+      const city = typeof s.city === "string" ? s.city.trim().slice(0, 40) : "";
+      const ok = isDate(s.start) && isDate(s.end) && s.end >= s.start;
+      return { city, country: country.slice(0, 40), start: ok ? s.start : "", end: ok ? s.end : "" };
+    }
     function connect(code) {
-      if (unsub) unsub();
+      stopAll();
       $("lockGo").disabled = true; $("lockErr").textContent = "Checking…";
-      col = fsdb.collection("sites").doc(code).collection("parties");
+      const site = fsdb.collection("sites").doc(code);
+      col = site.collection("parties");
+      evCol = site.collection("events");
       let first = true;
-      unsub = col.onSnapshot((snap) => {
+      unsubs.push(col.onSnapshot((snap) => {
         parties = snap.docs.map((d) => {
           const v = d.data() || {};
-          const stops = (Array.isArray(v.stops) ? v.stops : [])
-            .filter((s) => s && typeof s.place === "string" && s.place.trim())
-            .map((s) => {
-              const ok = isDate(s.start) && isDate(s.end) && s.end >= s.start;
-              return { place: s.place.trim().slice(0, 40), start: ok ? s.start : "", end: ok ? s.end : "" };
-            });
+          const stops = (Array.isArray(v.stops) ? v.stops : []).map(parseStop).filter(Boolean);
           return { id: d.id, name: typeof v.name === "string" ? v.name.trim().slice(0, 60) : "", color: isColor(v.color) ? v.color : COLORS[8], stops };
         }).filter((p) => p.name && p.stops.length);
         loaded = true;
@@ -732,14 +999,28 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
           first = false;
           try { localStorage.setItem("sitePass", code); } catch (_) {}
           $("lock").hidden = true; $("app").hidden = false; $("addBtn").disabled = false;
-          render(); centerWedding();
+          render(); centerOn(pinned);
         } else render();
       }, (err) => {
         if (err && err.code === "permission-denied") {
           try { localStorage.removeItem("sitePass"); } catch (_) {}
           showLock("That passcode isn't right. Check with Jon or Steph.");
         } else showLock("Couldn't load travel plans. Check your connection and try again.");
-      });
+      }));
+      unsubs.push(evCol.onSnapshot((snap) => {
+        eventsErr = false;
+        events = snap.docs.map((d) => {
+          const v = d.data() || {};
+          return { id: d.id, date: v.date, label: typeof v.label === "string" ? v.label.trim().slice(0, 40) : "",
+                   icon: ICONS[v.icon] ? v.icon : "star", color: isColor(v.color) ? v.color : EV_COLORS[0] };
+        }).filter((e) => isDate(e.date) && e.label);
+        if (!focusFromEvents && !userPicked && events.length) {
+          focusFromEvents = true;
+          const nx = nextEvent() || sortedEvents()[0];
+          pinned = toT(nx.date);
+          render(); centerOn(pinned);
+        } else render();
+      }, () => { eventsErr = true; events = []; render(); }));
     }
     $("lockForm").addEventListener("submit", (e) => {
       e.preventDefault();
