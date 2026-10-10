@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Travel Tracker</title>
+<script>try { var t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=Barlow+Condensed:wght@600;700&display=swap">
@@ -22,8 +23,15 @@
   --line-soft: #1d2229;
   --fg: #eef0f3;
   --muted: #8d96a5;
-  --amber: #ffc21a;        /* departure-board yellow */
+  --amber: #ffc21a;        /* departure-board yellow (text/accents) */
+  --amber-bg: #ffc21a;     /* departure-board yellow (buttons) */
   --on-amber: #16120a;
+  --board-top: #151a21;
+  --shadow: 0 18px 50px rgba(0,0,0,.35);
+  /* flap tiles stay dark in both themes, like a real board */
+  --flap-top: #2a303b;
+  --flap-bot: #20252e;
+  --flap-fg: #eef0f3;
   --danger: #ff6b5e;
   --paper: #f6f3ea;        /* ticket stock */
   --paper-2: #ebe6d8;
@@ -44,6 +52,22 @@
   --name-w: 200px;
   color-scheme: dark;
 }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --board: #e7ebf0; --board-top: #f3f5f8; --panel: #ffffff; --tile: #eef1f5; --tile-hi: #dce2e9;
+    --line: #d5dbe3; --line-soft: #e8ecf1; --fg: #141920; --muted: #5d6675;
+    --amber: #946500; --danger: #c0352b; --weekend: rgba(20,25,32,.035);
+    --hover: rgba(255,194,26,.18); --hover-line: #c28a00; --track-a: .17; --shadow: 0 10px 30px rgba(20,25,32,.10);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --board: #e7ebf0; --board-top: #f3f5f8; --panel: #ffffff; --tile: #eef1f5; --tile-hi: #dce2e9;
+  --line: #d5dbe3; --line-soft: #e8ecf1; --fg: #141920; --muted: #5d6675;
+  --amber: #946500; --danger: #c0352b; --weekend: rgba(20,25,32,.035);
+  --hover: rgba(255,194,26,.18); --hover-line: #c28a00; --track-a: .17; --shadow: 0 10px 30px rgba(20,25,32,.10);
+  color-scheme: light;
+}
 .paper {
   --bg: var(--paper-2); --surface: var(--paper); --fg: var(--ink); --muted: var(--ink-muted);
   --line: var(--paper-line); --line-soft: #e2dbca; --hover: rgba(27,30,36,.06); --hover-line: var(--ink);
@@ -51,10 +75,9 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { color-scheme: dark; }
 body {
   margin: 0; color: var(--fg); background: var(--board);
-  background-image: linear-gradient(180deg, #151a21 0, var(--board) 420px);
+  background-image: linear-gradient(180deg, var(--board-top) 0, var(--board) 420px);
   font-family: var(--font-body); font-size: 14px; line-height: 1.5; padding: 32px 16px 56px;
 }
 .wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
@@ -69,7 +92,7 @@ header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content:
   --fw: clamp(22px, 3.6vw, 40px);
   position: relative; width: var(--fw); height: calc(var(--fw) * 1.32); border-radius: 4px;
   display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: calc(var(--fw) * .66);
-  color: var(--fg); background: linear-gradient(180deg, var(--tile-hi) 0 50%, var(--tile) 50% 100%);
+  color: var(--flap-fg); background: linear-gradient(180deg, var(--flap-top) 0 50%, var(--flap-bot) 50% 100%);
   box-shadow: inset 0 -1px 0 rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.04);
   transform-origin: 50% 50%;
 }
@@ -85,7 +108,7 @@ header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content:
 button { font: inherit; cursor: pointer; }
 .btn { border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 9px 16px; border-radius: 6px; font-weight: 700; font-size: 13px; letter-spacing: .02em; }
 .btn:hover { border-color: var(--muted); }
-.btn.primary { background: var(--amber); border-color: var(--amber); color: var(--on-amber); }
+.btn.primary { background: var(--amber-bg); border-color: var(--amber-bg); color: var(--on-amber); }
 .paper .btn.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--muted); padding-inline: 10px; }
 .btn.ghost:hover { color: var(--fg); }
@@ -101,7 +124,7 @@ button { font: inherit; cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--tile); color: var(--amber); }
 
 /* ---------- board ---------- */
-.chart-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+.chart-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
 .board-strip { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 16px; background: var(--board); border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
 .board-strip .ttl { display: inline-flex; align-items: center; gap: 8px; color: var(--amber); }
 .chart-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); }
@@ -142,7 +165,7 @@ button { font: inherit; cursor: pointer; }
 .days { height: 52px; border-bottom: 1px solid var(--line); }
 .days .track > div { position: absolute; top: 0; width: var(--day-w); height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-family: var(--font-mono); font-size: 9px; line-height: 1.1; color: var(--muted); }
 .days .track > div i { font-style: normal; text-transform: uppercase; letter-spacing: .06em; height: 13px; display: grid; place-items: center; }
-.days .track > div b { position: relative; width: 25px; height: 22px; border-radius: 3px; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--fg); background: linear-gradient(180deg, var(--tile-hi) 0 50%, var(--tile) 50% 100%); }
+.days .track > div b { position: relative; width: 25px; height: 22px; border-radius: 3px; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--flap-fg); background: linear-gradient(180deg, var(--flap-top) 0 50%, var(--flap-bot) 50% 100%); }
 .days .track > div b::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--split); }
 .days .track > div.ev i { color: var(--ec); }
 .days .track > div.ev b { box-shadow: 0 0 0 1px var(--ec); color: var(--ec); }
@@ -196,7 +219,7 @@ button { font: inherit; cursor: pointer; }
 .here h2 .evtag { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--ec); border: 1px solid var(--ec); padding: 3px 9px; border-radius: 4px; }
 .here p.hint { margin: 0; font-size: 12px; color: var(--muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .06em; }
 .places { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-.place { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 96px; min-width: 0; border-radius: 10px; background: var(--paper); color: var(--ink); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.place { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 96px; min-width: 0; border-radius: 10px; background: var(--paper); color: var(--ink); box-shadow: var(--shadow); border: 1px solid var(--line-soft); }
 .place::before, .place::after { content: ""; position: absolute; right: 88px; width: 16px; height: 16px; border-radius: 50%; background: var(--board); }
 .place::before { top: -8px; } .place::after { bottom: -8px; }
 .tk-main { padding: 14px 16px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -223,6 +246,7 @@ button { font: inherit; cursor: pointer; }
 .lock .go input { flex: 1; }
 .lock .barcode { height: 34px; margin: 0 22px 20px; }
 .hdr-actions { display: flex; gap: 6px; align-items: center; }
+.theme-btn { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; border-radius: 6px; }
 .notice { background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; padding: 14px 16px; color: var(--muted); }
 
 /* ---------- dialogs ---------- */
@@ -316,6 +340,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       <p class="sub" id="sub"></p>
     </div>
     <div class="hdr-actions">
+      <button class="btn ghost theme-btn" id="themeBtn" type="button" aria-label="Switch theme"></button>
       <button class="btn ghost" id="lockBtn" type="button">Lock</button>
       <button class="btn primary" id="addBtn" type="button" disabled>Add your travel</button>
     </div>
@@ -469,6 +494,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     camera:  { d: "M3 8h4l2-3h6l2 3h4v11H3z M12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" },
     pin:     { d: "M12 22s7-6.4 7-12a7 7 0 0 0-14 0c0 5.6 7 12 7 12z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" },
     flag:    { d: "M5 21V4 M5 4h12l-2.5 4L17 12H5" },
+    moon:    { d: "M20.5 13.5A8.5 8.5 0 1 1 10.5 3.5a6.6 6.6 0 0 0 10 10z" },
   };
   const MODES = {
     plane: { label: "Plane", rot: 90, d: "M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" },
@@ -501,7 +527,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     }
   });
   // split-flap spin: all tiles flip through random letters together, then land on their own letter
-  (function spinFlaps() {
+  function spinFlaps() {
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     document.querySelectorAll(".flap").forEach((f) => {
@@ -514,7 +540,23 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       };
       tick();
     });
-  })();
+  }
+  // light / dark switch (default follows the device; choice is remembered on this device)
+  const root = document.documentElement;
+  const themeNow = () => root.dataset.theme || (window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  function paintThemeBtn() {
+    const t = themeNow(), b = $("themeBtn");
+    b.innerHTML = icon(t === "dark" ? "sun" : "moon", 18);
+    b.setAttribute("aria-label", t === "dark" ? "Switch to light theme" : "Switch to dark theme");
+    b.title = b.getAttribute("aria-label");
+  }
+  $("themeBtn").addEventListener("click", () => {
+    const next = themeNow() === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("theme", next); } catch (_) {}
+    paintThemeBtn();
+  });
+  paintThemeBtn();
 
   const toT = (s) => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d); };
   const fmt = (t) => { const d = new Date(t); return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate(); };
@@ -1125,7 +1167,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
           first = false;
           try { localStorage.setItem("sitePass", code); } catch (_) {}
           $("lock").hidden = true; $("app").hidden = false; $("addBtn").disabled = false;
-          render(); centerOn(pinned);
+          render(); centerOn(pinned); spinFlaps();
         } else render();
       }, (err) => {
         if (err && err.code === "permission-denied") {
