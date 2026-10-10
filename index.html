@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Jon and Steph&#8217;s Travel Tracker</title>
+<title>Travel Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=Barlow+Condensed:wght@600;700&display=swap">
@@ -71,10 +71,12 @@ header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content:
   display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: calc(var(--fw) * .66);
   color: var(--fg); background: linear-gradient(180deg, var(--tile-hi) 0 50%, var(--tile) 50% 100%);
   box-shadow: inset 0 -1px 0 rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.04);
-  animation: flip .5s cubic-bezier(.3,.7,.4,1) both; animation-delay: calc(var(--i) * 45ms);
+  transform-origin: 50% 50%;
 }
+.flap-word { perspective: 400px; }
+.flap.flick { animation: flick 80ms linear; }
 .flap::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--split); }
-@keyframes flip { 0% { transform: rotateX(-90deg); } 60% { transform: rotateX(12deg); } 100% { transform: rotateX(0); } }
+@keyframes flick { 0% { transform: rotateX(0); } 50% { transform: rotateX(-90deg); } 100% { transform: rotateX(0); } }
 .sub { color: var(--muted); margin: 14px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
 .sub strong { color: var(--fg); font-weight: 700; }
 .sub .next { display: inline; }
@@ -285,7 +287,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   .two { grid-template-columns: minmax(0, 1fr); }
   .here h2 { font-size: 26px; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .flap { animation: none; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .flap.flick { animation: none; } }
 </style>
 </head>
 <body>
@@ -294,7 +296,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   <div class="card paper">
     <div class="tk-band"><span class="l"><span data-icon="plane"></span>Boarding pass</span><span class="r">Travel tracker</span></div>
     <form id="lockForm" novalidate>
-      <h1 class="ttl">Jon and Steph&#8217;s Travel Tracker</h1>
+      <h1 class="ttl">Travel Tracker</h1>
       <p>Enter the passcode from Jon &amp; Steph to see and add travel plans.</p>
       <div class="go">
         <input id="lockCode" type="password" autocomplete="current-password" maxlength="60" placeholder="Passcode" aria-label="Passcode">
@@ -310,7 +312,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   <header>
     <div>
       <p class="eyebrow"><span data-icon="plane"></span>Departures · Arrivals · Key dates</p>
-      <h1 class="flap-title" aria-label="Jon and Steph’s Travel Tracker">Jon and Steph’s Travel Tracker</h1>
+      <h1 class="flap-title" aria-label="Travel Tracker">Travel Tracker</h1>
       <p class="sub" id="sub"></p>
     </div>
     <div class="hdr-actions">
@@ -359,7 +361,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 <!-- travel dialog -->
 <div class="scrim" id="scrim" hidden>
   <form class="modal paper" id="form" novalidate>
-    <div class="tk-band"><span class="l"><span data-icon="plane"></span>Boarding pass</span><span class="r">Jon and Steph&#8217;s Travel Tracker</span></div>
+    <div class="tk-band"><span class="l"><span data-icon="plane"></span>Boarding pass</span><span class="r">Travel Tracker</span></div>
     <div class="body">
       <h3 id="formTitle">Add your travel</h3>
       <div class="field">
@@ -397,7 +399,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 <!-- key date dialog -->
 <div class="scrim" id="evScrim" hidden>
   <form class="modal paper" id="evForm" novalidate>
-    <div class="tk-band"><span class="l"><span data-icon="star"></span>Key date</span><span class="r">Jon and Steph&#8217;s Travel Tracker</span></div>
+    <div class="tk-band"><span class="l"><span data-icon="star"></span>Key date</span><span class="r">Travel Tracker</span></div>
     <div class="body">
       <h3 id="evTitle">Add a key date</h3>
       <div class="two">
@@ -494,10 +496,25 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     h.textContent = "";
     for (const w of words) {
       const wd = document.createElement("span"); wd.className = "flap-word"; wd.setAttribute("aria-hidden", "true");
-      for (const ch of w) { const f = document.createElement("span"); f.className = "flap"; f.style.setProperty("--i", i++); f.textContent = ch; wd.append(f); }
+      for (const ch of w) { const f = document.createElement("span"); f.className = "flap"; f.dataset.ch = ch; f.textContent = ch; wd.append(f); i++; }
       h.append(wd);
     }
   });
+  // split-flap spin: all tiles flip through random letters together, then land on their own letter
+  (function spinFlaps() {
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    document.querySelectorAll(".flap").forEach((f) => {
+      let n = 8 + Math.floor(Math.random() * 14);
+      const tick = () => {
+        f.classList.remove("flick"); void f.offsetWidth; f.classList.add("flick");
+        if (--n <= 0) { f.textContent = f.dataset.ch; return; }
+        f.textContent = A[Math.floor(Math.random() * A.length)];
+        setTimeout(tick, 70);
+      };
+      tick();
+    });
+  })();
 
   const toT = (s) => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d); };
   const fmt = (t) => { const d = new Date(t); return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate(); };
