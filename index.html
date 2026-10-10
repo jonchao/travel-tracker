@@ -110,7 +110,7 @@ button { font: inherit; cursor: pointer; }
 .fchip[aria-pressed="false"] { background: transparent; border-style: dashed; border-color: var(--line); color: var(--muted); text-decoration: line-through; }
 .fall { font-size: 13px; padding: 3px 10px; }
 
-.scroller { overflow-x: auto; overscroll-behavior-x: contain; scroll-behavior: smooth; }
+.scroller { overflow-x: auto; overscroll-behavior-x: contain; }
 .gantt { position: relative; min-width: max-content; padding-bottom: 4px; }
 .row { display: flex; position: relative; }
 .name { position: sticky; left: 0; z-index: 3; flex: 0 0 var(--name-w); width: var(--name-w); background: var(--surface); padding: 0 10px 0 18px; display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -206,15 +206,14 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 .icons { display: grid; grid-template-columns: repeat(auto-fill, 40px); gap: 6px; }
 .icons button { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); display: grid; place-items: center; }
 .icons button[aria-pressed="true"] { border-color: var(--ec); color: var(--ec); background: color-mix(in srgb, var(--ec) 14%, transparent); box-shadow: 0 0 0 1px var(--ec); }
-.stops { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
-.stop-edit { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 10px; padding: 14px 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.stops { display: flex; flex-direction: column; gap: 20px; margin-top: 10px; }
+.stop-edit { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 10px; padding: 18px 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
 .stop-edit .num { position: absolute; top: -9px; left: 12px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; background: var(--surface); color: var(--muted); padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); }
 .stop-edit .field { gap: 5px; }
 .stop-edit input, .stop-edit select { background: var(--surface); }
-.stop-edit .rm { position: absolute; top: 4px; right: 4px; border: 0; background: transparent; color: var(--muted); width: 32px; height: 32px; border-radius: 8px; font-size: 20px; line-height: 1; }
-.stop-edit .rm:hover { color: var(--danger); background: var(--line-soft); }
+.stop-edit .rm { position: absolute; top: -13px; right: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); width: 26px; height: 26px; border-radius: 50%; font-size: 16px; line-height: 1; display: grid; place-items: center; padding: 0; }
+.stop-edit .rm:hover { color: var(--danger); border-color: var(--danger); }
 .stop-edit label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
-.stop-edit .f-city { padding-right: 30px; }
 .err { color: var(--danger); font-size: 13px; margin: 0; min-height: 1em; }
 .modal-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .modal-actions .right { display: flex; gap: 8px; margin-left: auto; }
@@ -244,7 +243,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   .places { grid-template-columns: minmax(0, 1fr); }
   .two { grid-template-columns: minmax(0, 1fr); }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .scroller { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
@@ -436,7 +435,8 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 
   const toT = (s) => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d); };
   const fmt = (t) => { const d = new Date(t); return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate(); };
-  const fmtLong = (t) => { const d = new Date(t); return DOW[d.getUTCDay()] + ", " + MONTHS[d.getUTCMonth()] + " " + d.getUTCDate(); };
+  const DOW3 = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const fmtLong = (t) => { const d = new Date(t); return DOW3[d.getUTCDay()] + ", " + MONTHS[d.getUTCMonth()] + " " + d.getUTCDate(); };
   const short = (t) => { const d = new Date(t); return (d.getUTCMonth() + 1) + "/" + d.getUTCDate(); };
   const isDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
   const isColor = (s) => typeof s === "string" && /^#[0-9a-fA-F]{6}$/.test(s);
@@ -724,15 +724,20 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     }
   }
 
-  function centerOn(t) {
-    const meta = $("gantt")._meta, sc = $("scroller"); if (!meta) return;
-    const nameW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--name-w")) || 0;
-    const x = ((t - meta.start) / DAY) * meta.W;
-    if (sc.scrollWidth > sc.clientWidth) sc.scrollLeft = Math.max(0, x - (sc.clientWidth - nameW) / 2);
+  // Scroll the board so day t sits in the middle of the visible days (after layout settles).
+  function centerOn(t, smooth) {
+    requestAnimationFrame(() => {
+      const meta = $("gantt")._meta, sc = $("scroller"); if (!meta) return;
+      const nameW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--name-w")) || 0;
+      const x = ((t - meta.start) / DAY + 0.5) * meta.W;
+      const left = Math.max(0, Math.min(sc.scrollWidth - sc.clientWidth, x - (sc.clientWidth - nameW) / 2));
+      const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      sc.scrollTo({ left, behavior: smooth && !reduce ? "smooth" : "auto" });
+    });
   }
   function jumpTo(t) {
     pinned = t; userPicked = true; hovered = null;
-    applyFocus(); centerOn(t);
+    applyFocus(); centerOn(t, true);
     $("scroller").closest(".chart-card").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
@@ -954,7 +959,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     else if (!$("scrim").hidden) closeForm();
     else if (!$("kdPanel").hidden) setPanel(false);
   });
-  window.addEventListener("resize", () => { clearTimeout(window._rt); window._rt = setTimeout(render, 120); });
+  window.addEventListener("resize", () => { clearTimeout(window._rt); window._rt = setTimeout(() => { render(); centerOn(pinned); }, 120); });
 
   render();
 
