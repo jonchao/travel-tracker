@@ -283,6 +283,8 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 .lock .err { color: #b3261e; }
 .modal-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .modal-actions .right { display: flex; gap: 8px; margin-left: auto; }
+.switch-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px dashed var(--paper-line); border-radius: 8px; background: var(--paper-2); cursor: pointer; }
+.switch-row input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--ink); flex: 0 0 auto; }
 .two { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
 
 @media (max-width: 600px) {
@@ -341,6 +343,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     </div>
     <div class="hdr-actions">
       <button class="btn ghost theme-btn" id="themeBtn" type="button" aria-label="Switch theme"></button>
+      <button class="btn ghost theme-btn" id="adminBtn" type="button" aria-label="Admin settings" title="Admin settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       <button class="btn ghost" id="lockBtn" type="button">Lock</button>
       <button class="btn primary" id="addBtn" type="button" disabled>Add your travel</button>
     </div>
@@ -415,6 +418,34 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         <div class="right">
           <button class="btn" type="button" id="fCancel">Cancel</button>
           <button class="btn primary" type="submit" id="fSave">Save</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- admin dialog -->
+<div class="scrim" id="adScrim" hidden>
+  <form class="modal paper" id="adForm" novalidate>
+    <div class="tk-band"><span class="l">Admin</span><span class="r">Travel Tracker</span></div>
+    <div class="body">
+      <h3>Admin settings</h3>
+      <div class="field">
+        <label for="adCode">Admin code</label>
+        <input id="adCode" type="password" autocomplete="off" maxlength="60" placeholder="Your admin code">
+        <span class="help">Set in Firebase (config → admin → code). It's separate from the guest passcode.</span>
+      </div>
+      <label class="switch-row" for="adRequire">
+        <input type="checkbox" id="adRequire">
+        <span><strong>Require the passcode to view and edit</strong><br>
+        <span class="help" id="adHelp"></span></span>
+      </label>
+      <p class="err" id="adErr"></p>
+      <div class="modal-actions">
+        <span class="help" id="adStatus"></span>
+        <div class="right">
+          <button class="btn" type="button" id="adCancel">Cancel</button>
+          <button class="btn primary" type="submit" id="adSave">Save</button>
         </div>
       </div>
     </div>
@@ -1149,8 +1180,10 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       const mode = MODES[s.mode] || s.mode === "other" ? s.mode : DEFAULT_MODE;
       return { city, country: country.slice(0, 40), start: ok ? s.start : "", end: ok ? s.end : "", mode };
     }
+    let openMode = false, currentCode = null;
     function connect(code) {
       stopAll();
+      currentCode = code;
       $("lockGo").disabled = true; $("lockErr").textContent = "Checking…";
       const site = fsdb.collection("sites").doc(code);
       col = site.collection("parties");
@@ -1165,7 +1198,8 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         loaded = true;
         if (first) {
           first = false;
-          try { localStorage.setItem("sitePass", code); } catch (_) {}
+          if (!openMode) { try { localStorage.setItem("sitePass", code); } catch (_) {} }
+          $("lockBtn").hidden = openMode;
           $("lock").hidden = true; $("app").hidden = false; $("addBtn").disabled = false;
           render(); centerOn(pinned); spinFlaps();
         } else render();
@@ -1201,8 +1235,61 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       try { localStorage.removeItem("sitePass"); } catch (_) {}
       $("lockCode").value = ""; showLock("");
     });
-    let saved = null; try { saved = localStorage.getItem("sitePass"); } catch (_) {}
-    if (saved) { $("lockCode").value = saved; connect(saved); } else showLock("");
+    // public settings decide whether the passcode screen is shown at all
+    function startWithSaved() {
+      let saved = null; try { saved = localStorage.getItem("sitePass"); } catch (_) {}
+      if (saved) { $("lockCode").value = saved; connect(saved); } else showLock("");
+    }
+    $("lockErr").textContent = "Checking…"; $("lockGo").disabled = true;
+    fsdb.doc("config/settings").get().then((snap) => {
+      const v = snap.exists ? snap.data() : {};
+      if (v.open === true && typeof v.publicCode === "string" && v.publicCode) { openMode = true; connect(v.publicCode); }
+      else startWithSaved();
+    }).catch(startWithSaved);
+
+    // ---------- admin settings ----------
+    function adHelpText() {
+      $("adHelp").textContent = $("adRequire").checked
+        ? "On: guests see the passcode screen first, and only people with the passcode can see or change plans."
+        : "Off: anyone with the link goes straight to the board and can add or change plans. The passcode is still in place for when you switch it back on.";
+    }
+    $("adRequire").addEventListener("change", adHelpText);
+    $("adminBtn").addEventListener("click", () => {
+      $("adRequire").checked = !openMode;
+      $("adCode").value = ""; $("adErr").textContent = "";
+      $("adStatus").textContent = openMode ? "Currently: open to anyone with the link" : "Currently: passcode required";
+      adHelpText();
+      $("adScrim").hidden = false;
+      setTimeout(() => $("adCode").focus(), 0);
+    });
+    const closeAd = () => { $("adScrim").hidden = true; };
+    $("adCancel").addEventListener("click", closeAd);
+    $("adScrim").addEventListener("click", (e) => { if (e.target === $("adScrim")) closeAd(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("adScrim").hidden) closeAd(); });
+    $("adForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const adminCode = $("adCode").value.trim();
+      if (!adminCode) return $("adErr").textContent = "Enter your admin code.";
+      if (!currentCode) return $("adErr").textContent = "Open the board first, then change settings.";
+      const require = $("adRequire").checked;
+      $("adSave").disabled = true; $("adErr").textContent = "";
+      try {
+        // the rules accept a settings change only alongside a proof record carrying the right admin code
+        const ts = firebase.firestore.FieldValue.serverTimestamp();
+        const b = fsdb.batch();
+        b.set(fsdb.doc("adminproof/latest"), { code: adminCode, at: ts });
+        b.set(fsdb.doc("config/settings"), require ? { open: false, at: ts } : { open: true, publicCode: currentCode, at: ts });
+        await b.commit();
+        openMode = !require;
+        if (require) { try { localStorage.setItem("sitePass", currentCode); } catch (_) {} }
+        $("lockBtn").hidden = openMode;
+        closeAd();
+      } catch (err) {
+        $("adErr").textContent = err && err.code === "permission-denied"
+          ? "That admin code isn't right, or the database rules haven't been updated yet."
+          : "Couldn't save. Check your connection and try again.";
+      } finally { $("adSave").disabled = false; }
+    });
   })();
 })();
 </script>
