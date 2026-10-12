@@ -101,6 +101,28 @@ header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content:
 .flap.flick { animation: flick 80ms linear; }
 .flap::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--split); }
 @keyframes flick { 0% { transform: rotateX(0); } 50% { transform: rotateX(-90deg); } 100% { transform: rotateX(0); } }
+.proj { position: relative; margin-top: 14px; display: inline-block; }
+.proj-btn { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-left: 4px solid var(--amber); background: var(--panel); color: var(--fg); border-radius: 6px; padding: 7px 12px; font-family: var(--font-mono); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; max-width: 100%; }
+.proj-btn:hover, .proj-btn[aria-expanded="true"] { border-color: var(--amber); }
+.proj-btn .k { color: var(--muted); font-size: 10px; letter-spacing: .16em; }
+.proj-btn .v { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-btn .chev { color: var(--muted); transition: transform .15s; flex: 0 0 auto; }
+.proj-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.proj-menu { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; min-width: 340px; max-width: min(420px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 6px; }
+.proj-menu ul { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow-y: auto; }
+.proj-menu li button > span:first-child { min-width: 0; }
+.proj-menu li button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 0; background: transparent; color: var(--fg); padding: 9px 10px; border-radius: 6px; text-align: left; font-family: var(--font-mono); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
+.proj-menu li button:hover { background: var(--hover); }
+.proj-menu li button[aria-current="true"] { color: var(--amber); }
+.proj-menu .meta { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.proj-menu .past { border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; margin-left: 6px; }
+.proj-menu #projManage { width: 100%; margin-top: 4px; border-top: 1px dashed var(--line); border-radius: 0 0 6px 6px; text-align: left; font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.range-note { color: var(--amber); }
+.pm-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pm-list button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px dashed var(--paper-line); background: var(--paper-2); color: var(--ink); border-radius: 8px; padding: 10px 12px; text-align: left; }
+.pm-list button:hover { border-color: var(--ink); }
+.pm-list .nm { font-weight: 700; }
+.pm-list .dt { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
 .sub { color: var(--muted); margin: 14px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
 .sub strong { color: var(--fg); font-weight: 700; }
 .sub .next { display: inline; }
@@ -361,6 +383,16 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   <header>
     <div>
       <h1 class="flap-title" aria-label="Travel Tracker">Travel Tracker</h1>
+      <div class="proj">
+        <button type="button" class="proj-btn" id="projBtn" aria-expanded="false" aria-controls="projMenu">
+          <span class="k">Trip</span><span class="v" id="projName">…</span>
+          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="proj-menu" id="projMenu" hidden>
+          <ul id="projList"></ul>
+          <button type="button" class="btn ghost" id="projManage">Manage projects</button>
+        </div>
+      </div>
       <p class="sub" id="sub"></p>
     </div>
     <div class="hdr-actions">
@@ -372,7 +404,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   <div class="notice" id="notice" hidden></div>
 
   <section class="chart-card" aria-label="Travel timeline">
-    <div class="board-strip"><span class="ttl"><span data-icon="plane"></span>Departures board</span><span class="hint2">Tap a day to see who's where</span></div>
+    <div class="board-strip"><span class="ttl"><span data-icon="plane"></span>Departures board</span><span class="hint2"><span id="rangeNote" class="range-note" hidden>Some trips fall outside the project dates · </span>Tap a day to see who's where</span></div>
     <div class="chart-bar">
       <button type="button" class="kd-toggle" id="kdToggle" aria-expanded="false" aria-controls="kdPanel">
         <span class="ics" id="kdIcons"></span>
@@ -480,6 +512,53 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   </form>
 </div>
 
+<!-- manage projects dialog -->
+<div class="scrim" id="pmScrim" hidden>
+  <form class="modal paper" id="pmForm" novalidate>
+    <div class="tk-band"><span class="l"><span data-icon="flag"></span>Projects</span><span class="r">Travel Tracker</span></div>
+    <div class="body">
+      <h3 id="pmTitle">Manage projects</h3>
+      <div class="field" id="pmAdminField">
+        <label for="pmAdmin">Admin code</label>
+        <input id="pmAdmin" type="password" autocomplete="off" maxlength="60" placeholder="Needed once on this device">
+      </div>
+      <div id="pmListView">
+        <ul class="pm-list" id="pmList"></ul>
+        <button type="button" class="btn ghost" id="pmNew">+ New project</button>
+      </div>
+      <div id="pmEditView" hidden>
+        <div class="field">
+          <label for="pmName">Project name</label>
+          <input id="pmName" type="text" autocomplete="off" maxlength="60" placeholder="e.g. Japan spring 2028">
+        </div>
+        <div class="two">
+          <div class="field"><label for="pmStart">Start (optional)</label><input id="pmStart" type="date"></div>
+          <div class="field"><label for="pmEnd">End (optional)</label><input id="pmEnd" type="date"></div>
+        </div>
+        <span class="help">Leave the dates blank and the board fits everyone's travel, plus a week either side.</span>
+        <div class="field">
+          <label for="pmCountry">Main destination (optional)</label>
+          <select id="pmCountry"></select>
+          <span class="help">Adds a daily headcount row for this country and pre-fills it for new stops.</span>
+        </div>
+        <div class="field" id="pmConfirmField" hidden>
+          <label for="pmConfirm">Type the project name to delete it</label>
+          <input id="pmConfirm" type="text" autocomplete="off">
+          <span class="help">This deletes the project and every trip and key date in it. It can't be undone.</span>
+        </div>
+      </div>
+      <p class="err" id="pmErr"></p>
+      <div class="modal-actions">
+        <button class="btn danger" type="button" id="pmDelete" hidden>Delete</button>
+        <div class="right">
+          <button class="btn" type="button" id="pmCancel">Close</button>
+          <button class="btn primary" type="submit" id="pmSave" hidden>Save</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
 <!-- key date dialog -->
 <div class="scrim" id="evScrim" hidden>
   <form class="modal paper" id="evForm" novalidate>
@@ -529,9 +608,8 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     messagingSenderId: "1010364448757",
     appId: "1:1010364448757:web:c21d9bed632b8f21d62abc"
   };
-  const VIEW_START = "2027-02-22", VIEW_END = "2027-03-30";  // last week of Feb through end of March
-  const DEFAULT_FOCUS = "2027-03-06";
-  const HEADCOUNT_COUNTRY = "Thailand";
+  const AUTO_PAD_DAYS = 7;   // auto window: a week before the first and after the last date
+  const MAIN_ID = "main";    // the original (wedding) project's id
   const DAY = 864e5;
   const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const DOW = ["Su","Mo","Tu","We","Th","Fr","Sa"];
@@ -636,10 +714,21 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   let loaded = false;
   let sortBy = "arrive";
   let hiddenIds = new Set();
-  try { hiddenIds = new Set(JSON.parse(localStorage.getItem("hiddenParties") || "[]")); } catch (_) {}
+  let projects = [];          // {id, name, start, end, country, createdAt, missing}
+  let currentProjectId = null;
+  const cur = () => projects.find((p) => p.id === currentProjectId) || { id: currentProjectId || MAIN_ID, name: "Untitled trip", missing: true };
+  const headCountry = () => (cur().country || "").trim();
+  const prefKey = (k) => `${k}:${currentProjectId}`;
   const visible = () => parties.filter((p) => !hiddenIds.has(p.id));
-  function saveHidden() { try { localStorage.setItem("hiddenParties", JSON.stringify([...hiddenIds])); } catch (_) {} }
-  let pinned = toT(DEFAULT_FOCUS), hovered = null, userPicked = false, focusFromEvents = false;
+  function saveHidden() { try { localStorage.setItem(prefKey("hiddenParties"), JSON.stringify([...hiddenIds])); } catch (_) {} }
+  function loadPrefs() {
+    hiddenIds = new Set();
+    try { hiddenIds = new Set(JSON.parse(localStorage.getItem(prefKey("hiddenParties")) || "[]")); } catch (_) {}
+    let sb = "arrive"; try { sb = localStorage.getItem(prefKey("sortBy")) === "name" ? "name" : "arrive"; } catch (_) {}
+    setSort(sb, true);
+  }
+  let pinned = todayT, hovered = null, userPicked = false, focusFromEvents = false;
+  let rangeExtended = false;
   let editingId = null, editingEvId = null;
   let col = null, evCol = null, fsdb = null;
 
@@ -714,10 +803,23 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   }
   $("kdToggle").addEventListener("click", () => setPanel($("kdPanel").hidden));
 
+  // Board window: the project's fixed dates if set (stretched to fit anything outside them),
+  // otherwise a week either side of everyone's travel and key dates, otherwise today + 30 days.
   function range() {
-    let lo = toT(VIEW_START), hi = toT(VIEW_END);
-    for (const p of visible()) for (const s of p.stops) if (dated(s)) { lo = Math.min(lo, toT(s.start) - DAY); hi = Math.max(hi, toT(s.end) + DAY); }
-    for (const e of events) { lo = Math.min(lo, toT(e.date) - DAY); hi = Math.max(hi, toT(e.date) + DAY); }
+    const pr = cur(), dates = [];
+    for (const pt of parties) for (const s of pt.stops) if (dated(s)) dates.push(toT(s.start), toT(s.end));
+    for (const e of events) dates.push(toT(e.date));
+    const mn = dates.length ? Math.min(...dates) : null, mx = dates.length ? Math.max(...dates) : null;
+    let lo, hi; rangeExtended = false;
+    if (isDate(pr.start) && isDate(pr.end) && pr.end >= pr.start) {
+      lo = toT(pr.start); hi = toT(pr.end);
+      if (mn != null && mn < lo) { lo = mn - DAY; rangeExtended = true; }
+      if (mx != null && mx > hi) { hi = mx + DAY; rangeExtended = true; }
+    } else if (mn != null) {
+      lo = mn - AUTO_PAD_DAYS * DAY; hi = mx + AUTO_PAD_DAYS * DAY;
+    } else {
+      lo = isDate(pr.start) ? toT(pr.start) : todayT; hi = lo + 30 * DAY;
+    }
     return { start: lo, end: hi };
   }
   function sorted() {
@@ -864,22 +966,26 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       }
     }
 
-    const cr = mkRow("count-row");
-    cr.n.textContent = "In " + HEADCOUNT_COUNTRY;
-    const counts = [];
-    for (let k = 0; k < nDays; k++) {
-      const day = start + k * DAY;
-      counts.push(visible().filter((p) => p.stops.some((s) => s.country === HEADCOUNT_COUNTRY && present(s, day))).length);
+    const hc = headCountry();
+    if (hc) {
+      const cr = mkRow("count-row");
+      cr.n.textContent = "In " + hc;
+      const counts = [];
+      for (let k = 0; k < nDays; k++) {
+        const day = start + k * DAY;
+        counts.push(visible().filter((p) => p.stops.some((s) => s.country === hc && present(s, day))).length);
+      }
+      const max = Math.max(1, ...counts);
+      counts.forEach((n, k) => {
+        const evs = evsOn(start + k * DAY);
+        const c = el("div", evs.length ? "ev" : null); c.style.left = k * W + "px";
+        if (evs.length) c.style.setProperty("--ec", evs[0].color);
+        const sp = el("span"); sp.style.height = Math.round((n / max) * 28) + "px";
+        c.append(sp, el("b", n ? null : "zero", String(n)));
+        cr.tr.appendChild(c);
+      });
     }
-    const max = Math.max(1, ...counts);
-    counts.forEach((n, k) => {
-      const evs = evsOn(start + k * DAY);
-      const c = el("div", evs.length ? "ev" : null); c.style.left = k * W + "px";
-      if (evs.length) c.style.setProperty("--ec", evs[0].color);
-      const s = el("span"); s.style.height = Math.round((n / max) * 28) + "px";
-      c.append(s, el("b", n ? null : "zero", String(n)));
-      cr.tr.appendChild(c);
-    });
+    $("rangeNote").hidden = !rangeExtended;
 
     g._meta = { start, nDays, W };
     applyFocus(true);
@@ -907,7 +1013,8 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       const arr = byCountry.get(s.country);
       if (!arr.some((x) => x.p === p)) arr.push({ p, city: s.city });
     }
-    const groups = [...byCountry.entries()].sort((a, b) => ((b[0] === HEADCOUNT_COUNTRY) - (a[0] === HEADCOUNT_COUNTRY)) || b[1].length - a[1].length);
+    const hcn = headCountry();
+    const groups = [...byCountry.entries()].sort((a, b) => ((b[0] === hcn) - (a[0] === hcn)) || b[1].length - a[1].length);
     const title = $("hereTitle"); title.innerHTML = "";
     for (const e of evsOn(pday)) {
       const t = el("span", "evtag"); t.style.setProperty("--ec", e.color); t.innerHTML = icon(e.icon, 14); t.append(document.createTextNode(e.label));
@@ -974,11 +1081,10 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     sortBy = s;
     $("sortArrive").setAttribute("aria-pressed", String(s === "arrive"));
     $("sortName").setAttribute("aria-pressed", String(s === "name"));
-    if (!quiet) { try { localStorage.setItem("sortBy", s); } catch (_) {} render(); }
+    if (!quiet) { try { localStorage.setItem(prefKey("sortBy"), s); } catch (_) {} render(); }
   }
   $("sortArrive").addEventListener("click", () => setSort("arrive"));
   $("sortName").addEventListener("click", () => setSort("name"));
-  try { if (localStorage.getItem("sortBy") === "name") setSort("name", true); } catch (_) {}
 
   function friendly(err) {
     const c = err && err.code;
@@ -1077,7 +1183,10 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     if (!p) renderSwatches();
     $("stops").style.setProperty("--c", formColor);
     $("stops").innerHTML = "";
-    (p ? p.stops : [{ city: "", country: HEADCOUNT_COUNTRY, start: "2027-03-05", end: "2027-03-07", mode: DEFAULT_MODE }]).forEach(addStopRow);
+    const evs = sortedEvents(), pr = cur();
+    const dStart = evs.length ? evs[0].date : isDate(pr.start) ? pr.start : "";
+    const dEnd = evs.length ? evs[evs.length - 1].date : isDate(pr.end) ? pr.end : dStart;
+    (p ? p.stops : [{ city: "", country: headCountry(), start: dStart, end: dEnd, mode: DEFAULT_MODE }]).forEach(addStopRow);
     $("fErr").textContent = "";
     $("fDelete").hidden = !p; disarm();
   }
@@ -1148,7 +1257,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     editingEvId = e ? e.id : null;
     $("evTitle").textContent = e ? "Edit key date" : "Add a key date";
     $("eLabel").value = e ? e.label : "";
-    $("eDate").value = e ? e.date : DEFAULT_FOCUS;
+    $("eDate").value = e ? e.date : new Date(pinned).toISOString().slice(0, 10);
     evIcon = e ? e.icon : "star"; evColor = e ? e.color : EV_COLORS[0];
     renderEvPickers();
     $("eErr").textContent = "";
@@ -1191,14 +1300,15 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 
   render();
 
-  // ---------- access: anonymous sign-in + passcode unlock; data always lives at trips/main ----------
+  // ---------- access: anonymous sign-in + passcode unlock; each project lives at trips/{projectId} ----------
   (() => {
-    let unsubs = [], openMode = false, uid = null;
-    function stopAll() { unsubs.forEach((u) => u()); unsubs = []; }
+    let unsubs = [], projUnsub = null, openMode = false, uid = null;
+    function stopData() { unsubs.forEach((u) => u()); unsubs = []; }
+    function stopAll() { stopData(); if (projUnsub) { projUnsub(); projUnsub = null; } }
     function showLock(msg) {
       stopAll();
       parties = []; events = []; loaded = false;
-      $("boot").hidden = true; $("app").hidden = true; $("scrim").hidden = true; $("evScrim").hidden = true; $("adScrim").hidden = true; $("lock").hidden = false;
+      $("boot").hidden = true; $("app").hidden = true; $("scrim").hidden = true; $("evScrim").hidden = true; $("adScrim").hidden = true; $("pmScrim").hidden = true; $("lock").hidden = false;
       $("lockErr").textContent = msg || "";
       $("lockGo").disabled = false;
       setTimeout(() => $("lockCode").focus(), 0);
@@ -1207,9 +1317,6 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     firebase.initializeApp(firebaseConfig);
     fsdb = firebase.firestore();
     const auth = firebase.auth();
-    const site = fsdb.collection("trips").doc("main");
-    col = site.collection("parties");
-    evCol = site.collection("events");
     const nowIso = () => new Date().toISOString();
     const unlock = (code) => fsdb.collection("unlocks").doc(uid).set({ code, at: nowIso() });
 
@@ -1222,27 +1329,95 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       const mode = MODES[s.mode] || s.mode === "other" ? s.mode : DEFAULT_MODE;
       return { city, country: country.slice(0, 40), start: ok ? s.start : "", end: ok ? s.end : "", mode };
     }
-    // Listen to the board. onFirstDenied runs if this browser isn't allowed in yet.
-    function subscribe(onFirstDenied) {
-      stopAll();
-      let first = true;
+    // ---------- projects ----------
+    function parseProject(d) {
+      const v = d.data() || {};
+      return { id: d.id, name: typeof v.name === "string" && v.name.trim() ? v.name.trim().slice(0, 60) : "Untitled trip",
+               start: isDate(v.start) ? v.start : "", end: isDate(v.end) ? v.end : "",
+               country: typeof v.country === "string" ? v.country.trim().slice(0, 40) : "",
+               createdAt: typeof v.createdAt === "string" ? v.createdAt : "" };
+    }
+    const projSpan = (p) => ({ s: p.start || p.end || "", e: p.end || p.start || "" });
+    function orderedProjects() {
+      const today = new Date(todayT).toISOString().slice(0, 10), up = [], past = [];
+      for (const p of projects) (projSpan(p).e && projSpan(p).e < today ? past : up).push(p);
+      // trips without fixed dates follow their travel, so treat them as current and list them first
+      up.sort((a, b) => (projSpan(a).s || "0000").localeCompare(projSpan(b).s || "0000") || a.name.localeCompare(b.name));
+      past.sort((a, b) => projSpan(b).e.localeCompare(projSpan(a).e));
+      return { up, past };
+    }
+    function projMeta(p) {
+      const sp = projSpan(p);
+      if (sp.s && sp.e && sp.s !== sp.e) return `${fmt(toT(sp.s))} – ${fmt(toT(sp.e))} ${sp.e.slice(0, 4)}`;
+      if (sp.s) return `${fmt(toT(sp.s))} ${sp.s.slice(0, 4)}`;
+      return "Dates from trips";
+    }
+    function initialProjectId() {
+      const ids = new Set(projects.map((p) => p.id));
+      const h = decodeURIComponent((location.hash || "").slice(1));
+      if (ids.has(h)) return h;
+      let saved = null; try { saved = localStorage.getItem("project"); } catch (_) {}
+      if (saved && ids.has(saved)) return saved;
+      const { up, past } = orderedProjects();
+      return (up[0] || past[0] || { id: MAIN_ID }).id;
+    }
+    function setProjMenu(open) { $("projMenu").hidden = !open; $("projBtn").setAttribute("aria-expanded", String(open)); }
+    function renderProjects() {
+      $("projName").textContent = cur().name;
+      const ul = $("projList"); ul.innerHTML = "";
+      const { up, past } = orderedProjects();
+      for (const p of [...up, ...past]) {
+        const li = el("li"), b = el("button"); b.type = "button";
+        if (p.id === currentProjectId) b.setAttribute("aria-current", "true");
+        const nm = el("span", null, p.name);
+        if (past.includes(p)) nm.append(el("span", "past", "Past"));
+        b.append(nm, el("span", "meta", projMeta(p)));
+        b.addEventListener("click", () => { setProjMenu(false); if (p.id !== currentProjectId) selectProject(p.id); });
+        li.append(b); ul.append(li);
+      }
+    }
+    $("projBtn").addEventListener("click", () => setProjMenu($("projMenu").hidden));
+    document.addEventListener("click", (e) => { if (!$("projMenu").hidden && !e.target.closest(".proj")) setProjMenu(false); });
+    window.addEventListener("hashchange", () => {
+      const h = decodeURIComponent(location.hash.slice(1));
+      if (h !== currentProjectId && projects.some((p) => p.id === h)) selectProject(h);
+    });
+
+    function selectProject(id) {
+      currentProjectId = id;
+      try { localStorage.setItem("project", id); } catch (_) {}
+      if (decodeURIComponent(location.hash.slice(1)) !== id) { try { history.replaceState(null, "", "#" + id); } catch (_) {} }
+      loadPrefs();
+      parties = []; events = []; loaded = false; eventsErr = false;
+      userPicked = false; focusFromEvents = false; hovered = null; pinned = todayT; lastPanelDay = null;
+      setPanel(false);
+      renderProjects(); render();
+      subscribeProject();
+    }
+    // Listen to the chosen project's parties and key dates; focus the board once both have arrived.
+    function subscribeProject() {
+      stopData();
+      const pid = currentProjectId, site = fsdb.collection("trips").doc(pid);
+      col = site.collection("parties"); evCol = site.collection("events");
+      let pReady = false, eReady = false;
+      const settle = () => {
+        if (pid !== currentProjectId) return;
+        if (!pReady || !eReady || focusFromEvents || userPicked) return render();
+        focusFromEvents = true;
+        const nx = nextEvent() || sortedEvents()[0];
+        const firsts = parties.map(firstDate).filter((d) => d !== "9999").sort();
+        pinned = nx ? toT(nx.date) : firsts.length ? toT(firsts[0]) : range().start;
+        render(); centerOn(pinned);
+      };
       unsubs.push(col.onSnapshot((snap) => {
         parties = snap.docs.map((d) => {
           const v = d.data() || {};
           const stops = (Array.isArray(v.stops) ? v.stops : []).map(parseStop).filter(Boolean);
           return { id: d.id, name: typeof v.name === "string" ? v.name.trim().slice(0, 60) : "", color: isColor(v.color) ? v.color : COLORS[8], stops };
         }).filter((p) => p.name && p.stops.length);
-        loaded = true;
-        if (first) {
-          first = false;
-          $("lockBtn").hidden = openMode;
-          $("boot").hidden = true; $("lock").hidden = true; $("app").hidden = false; $("addBtn").disabled = false;
-          render(); centerOn(pinned); spinFlaps();
-        } else render();
+        loaded = true; pReady = true; settle();
       }, (err) => {
-        const denied = err && err.code === "permission-denied";
-        if (first && denied && onFirstDenied) onFirstDenied();
-        else if (denied) showLock("The passcode has changed. Enter the new one to keep going.");
+        if (err && err.code === "permission-denied") showLock("The passcode has changed. Enter the new one to keep going.");
         else showLock("Couldn't load travel plans. Check your connection and try again.");
       }));
       unsubs.push(evCol.onSnapshot((snap) => {
@@ -1252,13 +1427,40 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
           return { id: d.id, date: v.date, label: typeof v.label === "string" ? v.label.trim().slice(0, 40) : "",
                    icon: ICONS[v.icon] ? v.icon : "star", color: isColor(v.color) ? v.color : EV_COLORS[0] };
         }).filter((e) => isDate(e.date) && e.label);
-        if (!focusFromEvents && !userPicked && events.length) {
-          focusFromEvents = true;
-          const nx = nextEvent() || sortedEvents()[0];
-          pinned = toT(nx.date);
-          render(); centerOn(pinned);
-        } else render();
-      }, () => { eventsErr = true; events = []; render(); }));
+        eReady = true; settle();
+      }, () => { eventsErr = true; events = []; eReady = true; settle(); }));
+    }
+    // Listen to the project list. This is also the access check: onFirstDenied runs if this browser isn't allowed in yet.
+    // The original trip may have data but no project record yet; keep it listed until it's named or deleted.
+    let mainHasData = null;
+    async function probeMain() {
+      try { mainHasData = !(await fsdb.collection("trips").doc(MAIN_ID).collection("parties").limit(1).get()).empty; }
+      catch (_) { mainHasData = false; }
+    }
+    function subscribe(onFirstDenied) {
+      stopAll();
+      let first = true;
+      projUnsub = fsdb.collection("trips").onSnapshot(async (snap) => {
+        projects = snap.docs.map(parseProject);
+        if (!projects.some((p) => p.id === MAIN_ID)) {
+          if (first && mainHasData === null && projects.length) await probeMain();
+          if (!projects.length || mainHasData || currentProjectId === MAIN_ID)
+            projects.push({ id: MAIN_ID, name: "Untitled trip", start: "", end: "", country: "", createdAt: "", missing: true });
+        }
+        if (first) {
+          first = false;
+          $("lockBtn").hidden = openMode;
+          $("boot").hidden = true; $("lock").hidden = true; $("app").hidden = false; $("addBtn").disabled = false;
+          selectProject(initialProjectId());
+          spinFlaps();
+        } else if (!projects.some((p) => p.id === currentProjectId)) selectProject(initialProjectId());
+        else { renderProjects(); render(); }
+      }, (err) => {
+        const denied = err && err.code === "permission-denied";
+        if (first && denied && onFirstDenied) onFirstDenied();
+        else if (denied) showLock("The passcode has changed. Enter the new one to keep going.");
+        else showLock("Couldn't load travel plans. Check your connection and try again.");
+      });
     }
 
     // Start: sign in, read settings, try the board; fall back to a passcode remembered by the older version.
@@ -1292,6 +1494,110 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       showLock("");
     });
 
+    // ---------- manage projects (admin) ----------
+    const isAdminHere = () => { try { return localStorage.getItem("adminHere") === "1"; } catch (_) { return false; } };
+    const markAdmin = () => { try { localStorage.setItem("adminHere", "1"); } catch (_) {} };
+    async function ensureAdmin() {
+      const code = $("pmAdmin").value.trim();
+      if (!code) return;
+      try { await fsdb.collection("admins").doc(uid).set({ code, at: nowIso() }); }
+      catch (_) { throw { code: "bad-admin" }; }
+      markAdmin(); $("pmAdminField").hidden = true;
+    }
+    function pmFail(err, what) {
+      if (err && err.code === "bad-admin") return "That admin code isn't right.";
+      if (err && err.code === "permission-denied") { $("pmAdminField").hidden = false; return `${what} needs the admin code. Enter it above and try again.`; }
+      return "Couldn't save. Check your connection and try again.";
+    }
+    let pmEditing = null, pmDelArmed = false;
+    function pmCountryOptions(sel) {
+      const box = $("pmCountry"); box.innerHTML = "";
+      const none = el("option", null, "None"); none.value = ""; box.append(none);
+      for (const c of [...new Set(COUNTRIES.concat(sel ? [sel] : []))]) { const o = el("option", null, c); o.value = c; box.append(o); }
+      box.value = sel || "";
+    }
+    function pmShowList() {
+      pmEditing = null; $("pmTitle").textContent = "Manage projects";
+      $("pmListView").hidden = false; $("pmEditView").hidden = true; $("pmSave").hidden = true; $("pmDelete").hidden = true;
+      $("pmCancel").textContent = "Close"; $("pmErr").textContent = "";
+      const ul = $("pmList"); ul.innerHTML = "";
+      const { up, past } = orderedProjects();
+      for (const p of [...up, ...past]) {
+        const li = el("li"), b = el("button"); b.type = "button";
+        b.append(el("span", "nm", p.name + (p.id === currentProjectId ? " · showing" : "")), el("span", "dt", projMeta(p)));
+        b.addEventListener("click", () => pmShowEdit(p));
+        li.append(b); ul.append(li);
+      }
+    }
+    function pmShowEdit(p) {
+      pmEditing = p || { id: null };
+      $("pmTitle").textContent = p ? "Edit project" : "New project";
+      $("pmListView").hidden = true; $("pmEditView").hidden = false; $("pmSave").hidden = false;
+      $("pmDelete").hidden = !p; pmDelArmed = false; $("pmDelete").textContent = "Delete"; $("pmDelete").classList.remove("confirm");
+      $("pmConfirmField").hidden = true; $("pmConfirm").value = "";
+      $("pmCancel").textContent = "Back"; $("pmErr").textContent = "";
+      $("pmName").value = p && !p.missing ? p.name : "";
+      $("pmStart").value = p ? p.start || "" : ""; $("pmEnd").value = p ? p.end || "" : "";
+      pmCountryOptions(p ? p.country : "");
+      setTimeout(() => $("pmName").focus(), 0);
+    }
+    const closePm = () => { $("pmScrim").hidden = true; };
+    $("projManage").addEventListener("click", () => {
+      setProjMenu(false);
+      $("pmAdminField").hidden = isAdminHere(); $("pmAdmin").value = "";
+      pmShowList(); $("pmScrim").hidden = false;
+    });
+    $("pmNew").addEventListener("click", () => pmShowEdit(null));
+    $("pmCancel").addEventListener("click", () => { if (!$("pmEditView").hidden) pmShowList(); else closePm(); });
+    $("pmScrim").addEventListener("click", (e) => { if (e.target === $("pmScrim")) closePm(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (!$("pmScrim").hidden) closePm();
+      else if (!$("projMenu").hidden) setProjMenu(false);
+    });
+    $("pmForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!pmEditing) return;
+      const name = $("pmName").value.trim(), start = $("pmStart").value, end = $("pmEnd").value, country = $("pmCountry").value;
+      if (!name) return $("pmErr").textContent = "Give the project a name.";
+      if ((start && !end) || (!start && end)) return $("pmErr").textContent = "Add both a start and an end date, or leave both blank.";
+      if (start && end < start) return $("pmErr").textContent = "The end date is before the start date.";
+      const data = { name, createdAt: pmEditing.createdAt || nowIso(), updatedAt: nowIso() };
+      if (start) { data.start = start; data.end = end; }
+      if (country) data.country = country;
+      $("pmSave").disabled = true; $("pmErr").textContent = "";
+      try {
+        await ensureAdmin();
+        const isNew = !pmEditing.id, id = pmEditing.id || fsdb.collection("trips").doc().id;
+        await fsdb.collection("trips").doc(id).set(data);
+        markAdmin(); closePm();
+        if (isNew) selectProject(id);
+      } catch (err) { $("pmErr").textContent = pmFail(err, "Saving a project"); }
+      finally { $("pmSave").disabled = false; }
+    });
+    $("pmDelete").addEventListener("click", async () => {
+      if (!pmEditing || !pmEditing.id) return;
+      if (!pmDelArmed) {
+        pmDelArmed = true; $("pmConfirmField").hidden = false;
+        $("pmDelete").textContent = "Delete for good"; $("pmDelete").classList.add("confirm");
+        return setTimeout(() => $("pmConfirm").focus(), 0);
+      }
+      if ($("pmConfirm").value.trim() !== pmEditing.name) return $("pmErr").textContent = "Type the project name exactly as shown to delete it.";
+      $("pmDelete").disabled = true; $("pmErr").textContent = "Deleting…";
+      try {
+        await ensureAdmin();
+        const ref = fsdb.collection("trips").doc(pmEditing.id);
+        // admin-only step first, so a non-admin deletes nothing (an unnamed trip gets a record just to prove it)
+        if (pmEditing.missing) await ref.set({ name: "Untitled trip", createdAt: nowIso(), updatedAt: nowIso() });
+        await ref.delete();
+        for (const sub of ["parties", "events"]) { const qs = await ref.collection(sub).get(); for (const d of qs.docs) await d.ref.delete(); }
+        if (pmEditing.id === MAIN_ID) mainHasData = false;
+        markAdmin(); closePm();
+        if (pmEditing.id === currentProjectId) selectProject(initialProjectId());
+      } catch (err) { $("pmErr").textContent = pmFail(err, "Deleting a project"); }
+      finally { $("pmDelete").disabled = false; }
+    });
+
     // ---------- admin settings ----------
     function adHelpText() {
       $("adHelp").textContent = $("adRequire").checked
@@ -1318,7 +1624,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       if (newPass && (newPass.length < 4 || newPass.includes("/"))) return $("adErr").textContent = "The new passcode needs at least 4 characters and no “/”.";
       $("adSave").disabled = true; $("adErr").textContent = "";
       try {
-        try { await fsdb.collection("admins").doc(uid).set({ code: adminCode, at: nowIso() }); }
+        try { await fsdb.collection("admins").doc(uid).set({ code: adminCode, at: nowIso() }); markAdmin(); }
         catch (err) { throw { code: err && err.code === "permission-denied" ? "bad-admin" : "net" }; }
         await fsdb.doc("config/settings").set({ open: !require, at: nowIso() });
         if (newPass) {
