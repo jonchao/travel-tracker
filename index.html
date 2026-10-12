@@ -882,10 +882,13 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     });
 
     g._meta = { start, nDays, W };
-    applyFocus();
+    applyFocus(true);
   }
 
-  function applyFocus() {
+  // Hover only highlights the board; the who's-where passes follow the clicked/pinned day,
+  // so moving the mouse never changes the page height.
+  let lastPanelDay = null;
+  function applyFocus(force) {
     const meta = $("gantt")._meta; if (!meta) return;
     const day = hovered ?? pinned;
     const hl = $("hl"), k = Math.round((day - meta.start) / DAY);
@@ -894,21 +897,24 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const dimOn = hovered != null || userPicked;
     document.querySelectorAll("#gantt .stop").forEach((r) => r.classList.toggle("dim", dimOn && !!r._stop && dated(r._stop) && !present(r._stop, day)));
 
-    // who's where, grouped by country
+    // who's where (for the pinned day only), grouped by country
+    if (!force && pinned === lastPanelDay) return;
+    lastPanelDay = pinned;
+    const pday = pinned;
     const byCountry = new Map();
-    for (const p of sorted()) for (const s of p.stops) if (present(s, day)) {
+    for (const p of sorted()) for (const s of p.stops) if (present(s, pday)) {
       if (!byCountry.has(s.country)) byCountry.set(s.country, []);
       const arr = byCountry.get(s.country);
       if (!arr.some((x) => x.p === p)) arr.push({ p, city: s.city });
     }
     const groups = [...byCountry.entries()].sort((a, b) => ((b[0] === HEADCOUNT_COUNTRY) - (a[0] === HEADCOUNT_COUNTRY)) || b[1].length - a[1].length);
     const title = $("hereTitle"); title.innerHTML = "";
-    for (const e of evsOn(day)) {
+    for (const e of evsOn(pday)) {
       const t = el("span", "evtag"); t.style.setProperty("--ec", e.color); t.innerHTML = icon(e.icon, 14); t.append(document.createTextNode(e.label));
       title.append(t);
     }
-    title.append(document.createTextNode(fmtLong(day) + ": who's where"));
-    $("hereHint").textContent = groups.length ? "Hover or tap another day on the board to change it." : "Nobody has a stop on this day yet.";
+    title.append(document.createTextNode(fmtLong(pday) + ": who's where"));
+    $("hereHint").textContent = groups.length ? "Click or tap another day on the board to change it." : "Nobody has a stop on this day yet.";
     const box = $("places"); box.innerHTML = "";
     for (const [country, ps] of groups) {
       // a boarding pass per destination country
@@ -923,7 +929,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       }
       main.append(ul);
       const stub = el("div", "tk-stub");
-      stub.append(el("div", "tk-k", "Date"), el("div", "tk-v", fmt(day).toUpperCase()), el("div", "tk-k", "Parties"), el("div", "tk-v", String(ps.length)), el("div", "barcode"));
+      stub.append(el("div", "tk-k", "Date"), el("div", "tk-v", fmt(pday).toUpperCase()), el("div", "tk-k", "Parties"), el("div", "tk-v", String(ps.length)), el("div", "barcode"));
       card.append(main, stub); box.append(card);
     }
   }
