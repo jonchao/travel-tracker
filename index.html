@@ -518,10 +518,6 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     <div class="tk-band"><span class="l"><span data-icon="flag"></span>Projects</span><span class="r">Travel Tracker</span></div>
     <div class="body">
       <h3 id="pmTitle">Manage projects</h3>
-      <div class="field" id="pmAdminField">
-        <label for="pmAdmin">Admin code</label>
-        <input id="pmAdmin" type="password" autocomplete="off" maxlength="60" placeholder="Needed once on this device">
-      </div>
       <div id="pmListView">
         <ul class="pm-list" id="pmList"></ul>
         <button type="button" class="btn ghost" id="pmNew">+ New project</button>
@@ -541,10 +537,16 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
           <select id="pmCountry"></select>
           <span class="help">Adds a daily headcount row for this country and pre-fills it for new stops.</span>
         </div>
-        <div class="field" id="pmConfirmField" hidden>
-          <label for="pmConfirm">Type the project name to delete it</label>
-          <input id="pmConfirm" type="text" autocomplete="off">
-          <span class="help">This deletes the project and every trip and key date in it. It can't be undone.</span>
+        <div id="pmConfirmField" hidden>
+          <div class="field">
+            <label for="pmConfirm">Type the project name to delete it</label>
+            <input id="pmConfirm" type="text" autocomplete="off">
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label for="pmDelCode">Admin code</label>
+            <input id="pmDelCode" type="password" autocomplete="off" maxlength="60" placeholder="Required to delete">
+            <span class="help">Deleting removes the project and every trip and key date in it. It can't be undone.</span>
+          </div>
         </div>
       </div>
       <p class="err" id="pmErr"></p>
@@ -1495,18 +1497,16 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     });
 
     // ---------- manage projects (admin) ----------
-    const isAdminHere = () => { try { return localStorage.getItem("adminHere") === "1"; } catch (_) { return false; } };
     const markAdmin = () => { try { localStorage.setItem("adminHere", "1"); } catch (_) {} };
-    async function ensureAdmin() {
-      const code = $("pmAdmin").value.trim();
-      if (!code) return;
-      try { await fsdb.collection("admins").doc(uid).set({ code, at: nowIso() }); }
+    // Deleting always asks for the admin code; writing it with a server timestamp lets the rules check it was just entered.
+    async function proveAdmin(code) {
+      try { await fsdb.collection("admins").doc(uid).set({ code, at: firebase.firestore.FieldValue.serverTimestamp() }); }
       catch (_) { throw { code: "bad-admin" }; }
-      markAdmin(); $("pmAdminField").hidden = true;
+      markAdmin();
     }
-    function pmFail(err, what) {
+    function pmFail(err) {
       if (err && err.code === "bad-admin") return "That admin code isn't right.";
-      if (err && err.code === "permission-denied") { $("pmAdminField").hidden = false; return `${what} needs the admin code. Enter it above and try again.`; }
+      if (err && err.code === "permission-denied") return "That change wasn't accepted. Check the details and try again.";
       return "Couldn't save. Check your connection and try again.";
     }
     let pmEditing = null, pmDelArmed = false;
@@ -1534,7 +1534,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       $("pmTitle").textContent = p ? "Edit project" : "New project";
       $("pmListView").hidden = true; $("pmEditView").hidden = false; $("pmSave").hidden = false;
       $("pmDelete").hidden = !p; pmDelArmed = false; $("pmDelete").textContent = "Delete"; $("pmDelete").classList.remove("confirm");
-      $("pmConfirmField").hidden = true; $("pmConfirm").value = "";
+      $("pmConfirmField").hidden = true; $("pmConfirm").value = ""; $("pmDelCode").value = "";
       $("pmCancel").textContent = "Back"; $("pmErr").textContent = "";
       $("pmName").value = p && !p.missing ? p.name : "";
       $("pmStart").value = p ? p.start || "" : ""; $("pmEnd").value = p ? p.end || "" : "";
@@ -1544,7 +1544,6 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const closePm = () => { $("pmScrim").hidden = true; };
     $("projManage").addEventListener("click", () => {
       setProjMenu(false);
-      $("pmAdminField").hidden = isAdminHere(); $("pmAdmin").value = "";
       pmShowList(); $("pmScrim").hidden = false;
     });
     $("pmNew").addEventListener("click", () => pmShowEdit(null));
@@ -1567,12 +1566,11 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       if (country) data.country = country;
       $("pmSave").disabled = true; $("pmErr").textContent = "";
       try {
-        await ensureAdmin();
         const isNew = !pmEditing.id, id = pmEditing.id || fsdb.collection("trips").doc().id;
         await fsdb.collection("trips").doc(id).set(data);
-        markAdmin(); closePm();
+        closePm();
         if (isNew) selectProject(id);
-      } catch (err) { $("pmErr").textContent = pmFail(err, "Saving a project"); }
+      } catch (err) { $("pmErr").textContent = pmFail(err); }
       finally { $("pmSave").disabled = false; }
     });
     $("pmDelete").addEventListener("click", async () => {
@@ -1580,21 +1578,24 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       if (!pmDelArmed) {
         pmDelArmed = true; $("pmConfirmField").hidden = false;
         $("pmDelete").textContent = "Delete for good"; $("pmDelete").classList.add("confirm");
+        $("pmErr").textContent = "";
         return setTimeout(() => $("pmConfirm").focus(), 0);
       }
       if ($("pmConfirm").value.trim() !== pmEditing.name) return $("pmErr").textContent = "Type the project name exactly as shown to delete it.";
+      const delCode = $("pmDelCode").value.trim();
+      if (!delCode) return $("pmErr").textContent = "Enter the admin code to delete a project.";
       $("pmDelete").disabled = true; $("pmErr").textContent = "Deleting…";
       try {
-        await ensureAdmin();
+        await proveAdmin(delCode);
         const ref = fsdb.collection("trips").doc(pmEditing.id);
         // admin-only step first, so a non-admin deletes nothing (an unnamed trip gets a record just to prove it)
         if (pmEditing.missing) await ref.set({ name: "Untitled trip", createdAt: nowIso(), updatedAt: nowIso() });
         await ref.delete();
         for (const sub of ["parties", "events"]) { const qs = await ref.collection(sub).get(); for (const d of qs.docs) await d.ref.delete(); }
         if (pmEditing.id === MAIN_ID) mainHasData = false;
-        markAdmin(); closePm();
+        closePm();
         if (pmEditing.id === currentProjectId) selectProject(initialProjectId());
-      } catch (err) { $("pmErr").textContent = pmFail(err, "Deleting a project"); }
+      } catch (err) { $("pmErr").textContent = pmFail(err); }
       finally { $("pmDelete").disabled = false; }
     });
 
@@ -1624,7 +1625,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       if (newPass && (newPass.length < 4 || newPass.includes("/"))) return $("adErr").textContent = "The new passcode needs at least 4 characters and no “/”.";
       $("adSave").disabled = true; $("adErr").textContent = "";
       try {
-        try { await fsdb.collection("admins").doc(uid).set({ code: adminCode, at: nowIso() }); markAdmin(); }
+        try { await fsdb.collection("admins").doc(uid).set({ code: adminCode, at: firebase.firestore.FieldValue.serverTimestamp() }); markAdmin(); }
         catch (err) { throw { code: err && err.code === "permission-denied" ? "bad-admin" : "net" }; }
         await fsdb.doc("config/settings").set({ open: !require, at: nowIso() });
         if (newPass) {
