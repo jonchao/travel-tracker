@@ -239,7 +239,16 @@ button { font: inherit; cursor: pointer; }
 
 .overlay { position: absolute; top: 0; bottom: 0; left: var(--name-w); pointer-events: none; z-index: 0; }
 .overlay > div { position: absolute; top: 0; bottom: 0; width: var(--day-w); }
+.overlay .hl { width: var(--day-w); }
 .overlay .we { background: var(--weekend); }
+.overlay .gapband { background: repeating-linear-gradient(90deg, transparent 0 5px, var(--line-soft) 5px 6px); border-left: 1px dashed var(--line); border-right: 1px dashed var(--line); }
+.days .track > div.gap { justify-content: center; gap: 2px; color: var(--muted); }
+.days .track > div.gap i { letter-spacing: .1em; }
+.days .track > div.gap .gn { font-size: 10px; letter-spacing: .04em; color: var(--amber); }
+.bar-ctrls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gap-btn { border: 1px solid var(--line); background: var(--board); color: var(--muted); border-radius: 6px; padding: 6px 10px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.gap-btn[aria-pressed="true"] { color: var(--amber); border-color: var(--amber); }
+.gap-btn:hover { border-color: var(--amber); }
 .overlay .evband { background: color-mix(in srgb, var(--ec) 10%, transparent); }
 .overlay .hl { background: var(--hover); box-shadow: inset 1px 0 var(--hover-line), inset -1px 0 var(--hover-line); }
 
@@ -430,9 +439,12 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         Key dates <span class="n" id="kdCount"></span>
         <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </button>
+      <div class="bar-ctrls">
+      <button type="button" class="gap-btn" id="gapBtn" aria-pressed="true" hidden title="Shrink long stretches where nobody is travelling">Hide empty days</button>
       <div class="seg" role="group" aria-label="Sort parties">
         <button type="button" id="sortArrive" aria-pressed="true">By arrival</button>
         <button type="button" id="sortName" aria-pressed="false">By name</button>
+      </div>
       </div>
     </div>
     <div class="kd-panel" id="kdPanel" hidden>
@@ -753,6 +765,9 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   }
   let pinned = todayT, hovered = null, userPicked = false, focusFromEvents = false;
   let rangeExtended = false;
+  const GAP_MIN = 4, GAP_W = 46;   // hide stretches of 4+ empty days, drawn as one 46px column
+  let collapseGaps = true;
+  try { collapseGaps = localStorage.getItem("collapseGaps") !== "0"; } catch (_) {}
   let editingId = null, editingEvId = null;
   let col = null, evCol = null, fsdb = null;
 
@@ -862,16 +877,45 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const W = parseFloat(css.getPropertyValue("--day-w")) || 32;
     const { start, end } = range();
     const nDays = Math.round((end - start) / DAY) + 1;
-    const trackW = nDays * W;
+    // Columns: one per day; with "hide empty days" on, a run of GAP_MIN+ days between trips where nobody
+    // has a stop and there's no key date becomes a single narrow gap column.
+    const busy = [];
+    for (let i = 0; i < nDays; i++) {
+      const t = start + i * DAY;
+      busy.push(evsOn(t).length > 0 || visible().some((p) => p.stops.some((s) => present(s, t))));
+    }
+    const firstBusy = busy.indexOf(true), lastBusy = busy.lastIndexOf(true);
+    const cols = [], colByT = new Map();
+    let gapsFound = 0, x = 0;
+    for (let i = 0; i < nDays;) {
+      let j = i;
+      if (!busy[i] && i > firstBusy && i < lastBusy) { while (j < nDays && !busy[j]) j++; }
+      if (j - i >= GAP_MIN) {
+        gapsFound++;
+        if (collapseGaps) {
+          const c = { gap: true, from: start + i * DAY, to: start + (j - 1) * DAY, n: j - i, x, w: GAP_W };
+          cols.push(c); for (let k = i; k < j; k++) colByT.set(start + k * DAY, c);
+          x += GAP_W; i = j; continue;
+        }
+      }
+      const stopAt = Math.max(j, i + 1);
+      for (let k = i; k < stopAt; k++) { const c = { t: start + k * DAY, x, w: W }; cols.push(c); colByT.set(c.t, c); x += W; }
+      i = stopAt;
+    }
+    const trackW = x;
+    const colX = (t) => colByT.get(t).x;
+    $("gapBtn").hidden = !gapsFound;
+    $("gapBtn").setAttribute("aria-pressed", String(collapseGaps));
     const g = $("gantt");
     g.innerHTML = "";
 
     const ov = el("div", "overlay"); ov.style.width = trackW + "px";
-    for (let i = 0; i < nDays; i++) {
-      const t = start + i * DAY, dow = new Date(t).getUTCDay();
-      if (dow === 0 || dow === 6) { const c = el("div", "we"); c.style.left = i * W + "px"; ov.appendChild(c); }
-      const evs = evsOn(t);
-      if (evs.length) { const c = el("div", "evband"); c.style.left = i * W + "px"; c.style.setProperty("--ec", evs[0].color); ov.appendChild(c); }
+    for (const c of cols) {
+      if (c.gap) { const b = el("div", "gapband"); b.style.left = c.x + "px"; b.style.width = c.w + "px"; ov.appendChild(b); continue; }
+      const dow = new Date(c.t).getUTCDay();
+      if (dow === 0 || dow === 6) { const d = el("div", "we"); d.style.left = c.x + "px"; ov.appendChild(d); }
+      const evs = evsOn(c.t);
+      if (evs.length) { const d = el("div", "evband"); d.style.left = c.x + "px"; d.style.setProperty("--ec", evs[0].color); ov.appendChild(d); }
     }
     const hl = el("div", "hl"); hl.id = "hl"; hl.hidden = true; ov.appendChild(hl);
     g.appendChild(ov);
@@ -883,20 +927,27 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     };
 
     const m = mkRow("months");
-    for (let i = 0; i < nDays;) {
-      const d = new Date(start + i * DAY), mo = d.getUTCMonth();
-      let j = i; while (j < nDays && new Date(start + j * DAY).getUTCMonth() === mo) j++;
-      const span = j - i;
+    const monthOf = (c) => new Date(c.gap ? c.to : c.t);
+    for (let i = 0; i < cols.length;) {
+      const d = monthOf(cols[i]), mo = d.getUTCMonth(), yr = d.getUTCFullYear();
+      let j = i, w = 0;
+      while (j < cols.length && monthOf(cols[j]).getUTCMonth() === mo && monthOf(cols[j]).getUTCFullYear() === yr) { w += cols[j].w; j++; }
       const lab = el("div");
-      lab.append(el("span", "mlab", span >= 3 ? MONTHS[mo] + " " + d.getUTCFullYear() : span === 2 ? MONTHS[mo] : ""));
-      lab.style.left = i * W + "px"; lab.style.width = span * W + "px";
+      lab.append(el("span", "mlab", w >= 3 * W ? MONTHS[mo] + " " + yr : w >= 2 * W ? MONTHS[mo] : ""));
+      lab.style.left = cols[i].x + "px"; lab.style.width = w + "px";
       if (i === 0) lab.style.borderLeft = "0";
       m.tr.appendChild(lab); i = j;
     }
     const dh = mkRow("days");
-    for (let k = 0; k < nDays; k++) {
-      const t = start + k * DAY, d = new Date(t), evs = evsOn(t);
-      const c = el("div", evs.length ? "ev" : null); c.style.left = k * W + "px";
+    for (const col of cols) {
+      if (col.gap) {
+        const c = el("div", "gap"); c.style.left = col.x + "px"; c.style.width = col.w + "px";
+        c.title = `${fmt(col.from)} – ${fmt(col.to)}: nobody travelling (${col.n} days hidden)`;
+        c.append(el("i", null, "···"), el("span", "gn", col.n + "d"));
+        dh.tr.appendChild(c); continue;
+      }
+      const t = col.t, d = new Date(t), evs = evsOn(t);
+      const c = el("div", evs.length ? "ev" : null); c.style.left = col.x + "px";
       const top = el("i");
       if (evs.length) { c.style.setProperty("--ec", evs[0].color); top.innerHTML = icon(evs[0].icon, 14); c.title = evs.map((e) => e.label).join(" · "); }
       else top.textContent = DOW[d.getUTCDay()];
@@ -931,8 +982,8 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         r.tr.appendChild(el("div", "lane"));
         if (dated(s)) {
           const a = toT(s.start), b = toT(s.end);
-          const x = Math.round((a - start) / DAY) * W + 3;
-          const w = (Math.round((b - a) / DAY) + 1) * W - 6;
+          const x = colX(a) + 3;
+          const w = colX(b) + colByT.get(b).w - colX(a) - 6;
           const bar = el("div", s.tentative ? "bar tent" : "bar");
           bar.style.left = x + "px"; bar.style.width = w + "px";
           bar.title = `${p.name} · ${placeLabel(s)}: ${fmt(a)} – ${fmt(b)}${s.tentative ? " (tentative)" : ""}`;
@@ -994,15 +1045,12 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     if (hc) {
       const cr = mkRow("count-row");
       cr.n.textContent = "In " + hc;
-      const counts = [];
-      for (let k = 0; k < nDays; k++) {
-        const day = start + k * DAY;
-        counts.push(visible().filter((p) => p.stops.some((s) => samePlace(s.country, hc) && present(s, day))).length);
-      }
+      const dayCols = cols.filter((c) => !c.gap);
+      const counts = dayCols.map((col) => visible().filter((p) => p.stops.some((s) => samePlace(s.country, hc) && present(s, col.t))).length);
       const max = Math.max(1, ...counts);
       counts.forEach((n, k) => {
-        const evs = evsOn(start + k * DAY);
-        const c = el("div", evs.length ? "ev" : null); c.style.left = k * W + "px";
+        const evs = evsOn(dayCols[k].t);
+        const c = el("div", evs.length ? "ev" : null); c.style.left = dayCols[k].x + "px";
         if (evs.length) c.style.setProperty("--ec", evs[0].color);
         const sp = el("span"); sp.style.height = Math.round((n / max) * 28) + "px";
         c.append(sp, el("b", n ? null : "zero", String(n)));
@@ -1011,7 +1059,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     }
     $("rangeNote").hidden = !rangeExtended;
 
-    g._meta = { start, nDays, W };
+    g._meta = { start, cols, colByT, W };
     applyFocus(true);
   }
 
@@ -1021,9 +1069,9 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   function applyFocus(force) {
     const meta = $("gantt")._meta; if (!meta) return;
     const day = hovered ?? pinned;
-    const hl = $("hl"), k = Math.round((day - meta.start) / DAY);
-    hl.hidden = !(k >= 0 && k < meta.nDays);
-    hl.style.left = k * meta.W + "px";
+    const hl = $("hl"), hc = meta.colByT.get(day);
+    hl.hidden = !hc;
+    if (hc) { hl.style.left = hc.x + "px"; hl.style.width = hc.w + "px"; }
     const dimOn = hovered != null || userPicked;
     document.querySelectorAll("#gantt .stop").forEach((r) => r.classList.toggle("dim", dimOn && !!r._stop && dated(r._stop) && !present(r._stop, day)));
 
@@ -1072,7 +1120,8 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     requestAnimationFrame(() => {
       const meta = $("gantt")._meta, sc = $("scroller"); if (!meta) return;
       const nameW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--name-w")) || 0;
-      const x = ((t - meta.start) / DAY + 0.5) * meta.W;
+      const c = meta.colByT.get(t); if (!c) return;
+      const x = c.x + c.w / 2;
       const left = Math.max(0, Math.min(sc.scrollWidth - sc.clientWidth, x - (sc.clientWidth - nameW) / 2));
       const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
       sc.scrollTo({ left, behavior: smooth && !reduce ? "smooth" : "auto" });
@@ -1087,8 +1136,9 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   function dayFromEvent(e) {
     const meta = $("gantt")._meta, tr = $("gantt").querySelector(".row .track");
     if (!meta || !tr) return null;
-    const k = Math.floor((e.clientX - tr.getBoundingClientRect().left) / meta.W);
-    return k >= 0 && k < meta.nDays ? meta.start + k * DAY : null;
+    const px = e.clientX - tr.getBoundingClientRect().left;
+    const c = meta.cols.find((col) => px >= col.x && px < col.x + col.w);
+    return c && !c.gap ? c.t : null;   // a hidden-days column isn't a day you can pick
   }
   const gantt = $("gantt");
   gantt.addEventListener("pointermove", (e) => {
@@ -1110,6 +1160,11 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     if (!quiet) { try { localStorage.setItem(prefKey("sortBy"), s); } catch (_) {} render(); }
   }
   $("sortArrive").addEventListener("click", () => setSort("arrive"));
+  $("gapBtn").addEventListener("click", () => {
+    collapseGaps = !collapseGaps;
+    try { localStorage.setItem("collapseGaps", collapseGaps ? "1" : "0"); } catch (_) {}
+    render(); centerOn(pinned);
+  });
   $("sortName").addEventListener("click", () => setSort("name"));
 
   function friendly(err) {
