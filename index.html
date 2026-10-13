@@ -774,6 +774,10 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
   const dated = (s) => isDate(s.start) && isDate(s.end);
   const present = (s, day) => dated(s) && toT(s.start) <= day && day <= toT(s.end);
   const firstDate = (p) => p.stops.filter(dated).map((s) => s.start).sort()[0] || "9999";
+  // Stops in date order (earliest first); stops without dates keep their entered order at the end.
+  const byStart = (stops) => stops.map((s, i) => [s, i]).sort((a, b) =>
+    (dated(a[0]) ? a[0].start : "9999").localeCompare(dated(b[0]) ? b[0].start : "9999") ||
+    (dated(a[0]) ? a[0].end : "").localeCompare(dated(b[0]) ? b[0].end : "") || a[1] - b[1]).map((x) => x[0]);
   const evsOn = (t) => events.filter((e) => toT(e.date) === t);
   const sortedEvents = () => events.slice().sort((a, b) => a.date.localeCompare(b.date) || a.label.localeCompare(b.label));
   const nextEvent = () => sortedEvents().find((e) => toT(e.date) >= todayT);
@@ -971,7 +975,8 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 
       const wrap = el("div", "stops-wrap"); g.appendChild(wrap);
       const ROW_H = 32, ends = [];
-      p.stops.forEach((s, idx) => {
+      const ordered = byStart(p.stops);
+      ordered.forEach((s, idx) => {
         const r = mkRow("stop", wrap);
         r.r.style.setProperty("--c", p.color);
         r.r._stop = s;
@@ -1291,7 +1296,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const evs = sortedEvents(), pr = cur();
     const dStart = evs.length ? evs[0].date : isDate(pr.start) ? pr.start : "";
     const dEnd = evs.length ? evs[evs.length - 1].date : isDate(pr.end) ? pr.end : dStart;
-    (p ? p.stops : [{ city: "", country: headCountry(), start: dStart, end: dEnd, mode: DEFAULT_MODE }]).forEach(addStopRow);
+    (p ? byStart(p.stops) : [{ city: "", country: headCountry(), start: dStart, end: dEnd, mode: DEFAULT_MODE }]).forEach(addStopRow);
     $("fErr").textContent = "";
     $("fDelete").hidden = !p; disarm();
   }
