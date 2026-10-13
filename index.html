@@ -218,6 +218,9 @@ button { font: inherit; cursor: pointer; }
 .stop .name small.tbd { color: var(--amber); font-size: 10px; margin-left: auto; white-space: nowrap; letter-spacing: .1em; }
 .lane { position: absolute; top: 8px; height: 16px; left: 2px; right: 2px; border-radius: 999px; background: color-mix(in srgb, var(--c) calc(var(--track-a) * 100%), transparent); }
 .bar { position: absolute; top: 8px; height: 16px; border-radius: 999px; background: var(--c); transition: opacity .15s; }
+/* tentative: diagonal stripes in the party colour, outlined so the shape still reads */
+.bar.tent { background: repeating-linear-gradient(-45deg, var(--c) 0 4px, color-mix(in srgb, var(--c) 28%, transparent) 4px 8px); box-shadow: inset 0 0 0 1.5px var(--c); }
+.chip .tent-tag { font-weight: 400; font-style: italic; opacity: .8; }
 .bar-lbl { position: absolute; top: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; pointer-events: none; transition: opacity .15s; }
 .stop.dim .bar { opacity: .22; }
 .stop.dim .bar-lbl { opacity: 0; }
@@ -310,6 +313,11 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 .stop-edit .rm { position: absolute; top: -13px; right: 10px; border: 1px solid var(--paper-line); background: var(--paper); color: var(--ink-muted); width: 26px; height: 26px; border-radius: 50%; font-size: 16px; line-height: 1; display: grid; place-items: center; padding: 0; }
 .stop-edit .rm:hover { color: #b3261e; border-color: #b3261e; }
 .stop-edit .f-mode { grid-column: 1 / -1; }
+.stop-edit .f-tent { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.stop-edit .f-tent input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); flex: 0 0 auto; }
+.stop-edit .f-tent .sw { width: 34px; height: 12px; border-radius: 999px; flex: 0 0 auto; background: repeating-linear-gradient(-45deg, var(--c) 0 4px, color-mix(in srgb, var(--c) 28%, transparent) 4px 8px); box-shadow: inset 0 0 0 1.5px var(--c); }
+.stop-edit .f-tent .t { font-size: 13px; color: var(--ink); }
+.stop-edit .f-tent .t small { display: block; font-size: 11px; color: var(--ink-muted); }
 .modes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; max-width: 360px; }
 .mbtn { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; border: 0; background: transparent; padding: 2px 0; color: var(--ink-muted); font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; border-radius: 6px; }
 .mbtn .b { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--paper-line); background: #fffdf7; color: var(--ink-muted); transition: background .12s, color .12s; }
@@ -918,9 +926,9 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
           const a = toT(s.start), b = toT(s.end);
           const x = Math.round((a - start) / DAY) * W + 3;
           const w = (Math.round((b - a) / DAY) + 1) * W - 6;
-          const bar = el("div", "bar");
+          const bar = el("div", s.tentative ? "bar tent" : "bar");
           bar.style.left = x + "px"; bar.style.width = w + "px";
-          bar.title = `${p.name} · ${placeLabel(s)}: ${fmt(a)} – ${fmt(b)}`;
+          bar.title = `${p.name} · ${placeLabel(s)}: ${fmt(a)} – ${fmt(b)}${s.tentative ? " (tentative)" : ""}`;
           r.tr.appendChild(bar);
           const lbl = el("span", "bar-lbl", `${short(a)}–${short(b)}`);
           lbl.style.left = (x + w + 6) + "px";
@@ -1020,7 +1028,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     for (const p of sorted()) for (const s of p.stops) if (present(s, pday)) {
       if (!byCountry.has(s.country)) byCountry.set(s.country, []);
       const arr = byCountry.get(s.country);
-      if (!arr.some((x) => x.p === p)) arr.push({ p, city: s.city });
+      if (!arr.some((x) => x.p === p)) arr.push({ p, city: s.city, tentative: !!s.tentative });
     }
     const hcn = headCountry();
     const groups = [...byCountry.entries()].sort((a, b) => ((b[0] === hcn) - (a[0] === hcn)) || b[1].length - a[1].length);
@@ -1038,9 +1046,10 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       const main = el("div", "tk-main");
       main.append(el("div", "tk-k", "Destination"), el("div", "tk-city", country), el("div", "tk-k", "Passengers"));
       const ul = el("ul");
-      for (const { p, city } of ps) {
+      for (const { p, city, tentative } of ps) {
         const li = el("li"); const c = el("span", "chip", p.name); c.style.setProperty("--c", p.color);
         if (city) c.append(el("small", null, city));
+        if (tentative) c.append(el("small", "tent-tag", "tentative"));
         li.append(c); ul.append(li);
       }
       main.append(ul);
@@ -1132,6 +1141,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       `<div class="field"><label for="ss${i}">From</label><input type="date" id="ss${i}"></div>` +
       `<div class="field"><label for="se${i}">To</label><input type="date" id="se${i}"></div>` +
       `<div class="field f-mode"><span class="lbl-s" id="sml${i}">Then on to the next stop by</span><div class="modes" role="radiogroup" aria-labelledby="sml${i}"></div></div>` +
+      `<label class="f-tent" for="st${i}"><input type="checkbox" id="st${i}" class="s-tent"><span class="sw" aria-hidden="true"></span><span class="t">Tentative<small>Not booked yet. Shows as striped on the board.</small></span></label>` +
       `<button type="button" class="rm" aria-label="Remove stop">×</button>`;
     const sel = row.querySelector(`#sp${i}`);
     const extra = parties.flatMap((p) => p.stops.map((x) => x.country)).concat(s.country ? [s.country] : []);
@@ -1139,6 +1149,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const ph = el("option", null, "Choose a country"); ph.value = ""; sel.append(ph);
     for (const c of opts) { const o = el("option", null, c); o.value = c; sel.append(o); }
     sel.value = s.country || "";
+    row.querySelector(`#st${i}`).checked = !!s.tentative;
     // travel mode: all choices shown at once as badges, same glyphs as the board
     const mbox = row.querySelector(".modes");
     row.dataset.mode = s.mode || DEFAULT_MODE;
@@ -1219,6 +1230,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       const city = row.querySelector('input[type="text"]').value.trim();
       const country = row.querySelector(".s-country").value;
       const mode = row.dataset.mode || DEFAULT_MODE;
+      const tentative = row.querySelector(".s-tent").checked;
       const [st, en] = row.querySelectorAll('input[type="date"]');
       const start = st.value, end = en.value;
       if (!city && !country && !start && !end) continue;
@@ -1226,7 +1238,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       if (!country) return $("fErr").textContent = `Choose a country for ${where}.`;
       if ((start && !end) || (!start && end)) return $("fErr").textContent = `Add both dates for ${where}, or leave both blank.`;
       if (start && end < start) return $("fErr").textContent = `The dates for ${where} end before they start.`;
-      stops.push({ city, country, start, end, mode });
+      stops.push(tentative ? { city, country, start, end, mode, tentative: true } : { city, country, start, end, mode });
     }
     if (!stops.length) return $("fErr").textContent = "Add at least one stop.";
     if (!col) return;
@@ -1336,7 +1348,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       const city = typeof s.city === "string" ? s.city.trim().slice(0, 40) : "";
       const ok = isDate(s.start) && isDate(s.end) && s.end >= s.start;
       const mode = MODES[s.mode] || s.mode === "other" ? s.mode : DEFAULT_MODE;
-      return { city, country: country.slice(0, 40), start: ok ? s.start : "", end: ok ? s.end : "", mode };
+      return { city, country: country.slice(0, 40), start: ok ? s.start : "", end: ok ? s.end : "", mode, tentative: s.tentative === true };
     }
     // ---------- projects ----------
     function parseProject(d) {
