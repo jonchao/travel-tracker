@@ -1166,8 +1166,20 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       mbox.append(b);
     }
     row.querySelector(`#sc${i}`).value = s.city || "";
-    row.querySelector(`#ss${i}`).value = s.start || "";
-    row.querySelector(`#se${i}`).value = s.end || "";
+    const fromEl = row.querySelector(`#ss${i}`), toEl = row.querySelector(`#se${i}`);
+    fromEl.value = s.start || ""; toEl.value = s.end || "";
+    if (isDate(s.start)) toEl.min = s.start;
+    // Picking a From date fills To with the next day; a To date the person chose stays unless it would end before From.
+    toEl.dataset.manual = s.end ? "1" : "";
+    fromEl.addEventListener("change", () => {
+      const f = fromEl.value; if (!isDate(f)) return;
+      toEl.min = f;
+      if (!toEl.dataset.manual || !toEl.value || toEl.value <= f) {
+        toEl.value = new Date(toT(f) + DAY).toISOString().slice(0, 10);
+        toEl.dataset.manual = "";
+      }
+    });
+    toEl.addEventListener("input", () => { toEl.dataset.manual = toEl.value ? "1" : ""; });
     row.querySelector(".rm").addEventListener("click", () => { row.remove(); renumberStops(); });
     $("stops").append(row);
     renumberStops();
