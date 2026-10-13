@@ -455,6 +455,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
 <app-switcher class="corner-switch"></app-switcher>
 
 <datalist id="cityList"></datalist>
+<datalist id="placeList"></datalist>
 
 <!-- travel dialog -->
 <div class="scrim" id="scrim" hidden>
@@ -549,7 +550,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         <span class="help">Leave the dates blank and the board fits everyone's travel, plus a week either side.</span>
         <div class="field">
           <label for="pmCountry">Main destination (optional)</label>
-          <select id="pmCountry"></select>
+          <input id="pmCountry" type="text" list="placeList" maxlength="40" autocomplete="off" placeholder="A country or state, e.g. Thailand or California">
           <span class="help">Adds a daily headcount row for this country and pre-fills it for new stops.</span>
         </div>
         <div id="pmConfirmField" hidden>
@@ -990,7 +991,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       const counts = [];
       for (let k = 0; k < nDays; k++) {
         const day = start + k * DAY;
-        counts.push(visible().filter((p) => p.stops.some((s) => s.country === hc && present(s, day))).length);
+        counts.push(visible().filter((p) => p.stops.some((s) => samePlace(s.country, hc) && present(s, day))).length);
       }
       const max = Math.max(1, ...counts);
       counts.forEach((n, k) => {
@@ -1024,14 +1025,15 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     if (!force && pinned === lastPanelDay) return;
     lastPanelDay = pinned;
     const pday = pinned;
-    const byCountry = new Map();
+    const byCountry = new Map(), label = new Map();   // keyed case-insensitively; shows the first spelling seen
     for (const p of sorted()) for (const s of p.stops) if (present(s, pday)) {
-      if (!byCountry.has(s.country)) byCountry.set(s.country, []);
-      const arr = byCountry.get(s.country);
+      const key = s.country.trim().toLowerCase();
+      if (!byCountry.has(key)) { byCountry.set(key, []); label.set(key, s.country.trim()); }
+      const arr = byCountry.get(key);
       if (!arr.some((x) => x.p === p)) arr.push({ p, city: s.city, tentative: !!s.tentative });
     }
     const hcn = headCountry();
-    const groups = [...byCountry.entries()].sort((a, b) => ((b[0] === hcn) - (a[0] === hcn)) || b[1].length - a[1].length);
+    const groups = [...byCountry.entries()].map(([k, v]) => [label.get(k), v]).sort((a, b) => (samePlace(b[0], hcn) - samePlace(a[0], hcn)) || b[1].length - a[1].length);
     const title = $("hereTitle"); title.innerHTML = "";
     for (const e of evsOn(pday)) {
       const t = el("span", "evtag"); t.style.setProperty("--ec", e.color); t.innerHTML = icon(e.icon, 14); t.append(document.createTextNode(e.label));
@@ -1125,6 +1127,21 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       box.append(b);
     });
   }
+  // Countries and states are free text; suggest known ones and reuse an existing spelling when it matches.
+  function knownPlaces() {
+    const used = parties.flatMap((p) => p.stops.map((x) => x.country)).concat(projects.map((p) => p.country));
+    return [...new Set(COUNTRIES.concat(used).filter(Boolean))];
+  }
+  function refreshPlaceList() {
+    const dl = $("placeList"); dl.innerHTML = "";
+    for (const c of knownPlaces()) { const o = el("option"); o.value = c; dl.append(o); }
+  }
+  function canonPlace(v) {
+    const t = (v || "").trim().replace(/\s+/g, " ");
+    if (!t) return "";
+    return knownPlaces().find((c) => c.toLowerCase() === t.toLowerCase()) || t;
+  }
+  const samePlace = (a, b) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
   function refreshCityList() {
     const dl = $("cityList"); dl.innerHTML = "";
     const cities = [...new Set(parties.flatMap((p) => p.stops.map((s) => s.city)).filter(Boolean))].sort();
@@ -1137,18 +1154,13 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     row.innerHTML =
       `<span class="num"></span>` +
       `<div class="field f-city"><label for="sc${i}">City</label><input type="text" id="sc${i}" list="cityList" maxlength="40" placeholder="e.g. Bangkok" autocomplete="off"></div>` +
-      `<div class="field"><label for="sp${i}">Country</label><select id="sp${i}" class="s-country"></select></div>` +
+      `<div class="field"><label for="sp${i}">Country / state</label><input type="text" id="sp${i}" class="s-country" list="placeList" maxlength="40" autocomplete="off" placeholder="e.g. Thailand"></div>` +
       `<div class="field"><label for="ss${i}">From</label><input type="date" id="ss${i}"></div>` +
       `<div class="field"><label for="se${i}">To</label><input type="date" id="se${i}"></div>` +
       `<div class="field f-mode"><span class="lbl-s" id="sml${i}">Then on to the next stop by</span><div class="modes" role="radiogroup" aria-labelledby="sml${i}"></div></div>` +
       `<label class="f-tent" for="st${i}"><input type="checkbox" id="st${i}" class="s-tent"><span class="sw" aria-hidden="true"></span><span class="t">Tentative<small>Not booked yet. Shows as striped on the board.</small></span></label>` +
       `<button type="button" class="rm" aria-label="Remove stop">×</button>`;
-    const sel = row.querySelector(`#sp${i}`);
-    const extra = parties.flatMap((p) => p.stops.map((x) => x.country)).concat(s.country ? [s.country] : []);
-    const opts = [...new Set(COUNTRIES.concat(extra))];
-    const ph = el("option", null, "Choose a country"); ph.value = ""; sel.append(ph);
-    for (const c of opts) { const o = el("option", null, c); o.value = c; sel.append(o); }
-    sel.value = s.country || "";
+    row.querySelector(`#sp${i}`).value = s.country || "";
     row.querySelector(`#st${i}`).checked = !!s.tentative;
     // travel mode: all choices shown at once as badges, same glyphs as the board
     const mbox = row.querySelector(".modes");
@@ -1198,7 +1210,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     if (!p) $("fName").focus();
   });
   function openForm(p) {
-    refreshCityList();
+    refreshCityList(); refreshPlaceList();
     fillParties(p ? p.id : null);
     fillForm(p);
     $("scrim").hidden = false;
@@ -1240,14 +1252,14 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const stops = [];
     for (const row of $("stops").querySelectorAll(".stop-edit")) {
       const city = row.querySelector('input[type="text"]').value.trim();
-      const country = row.querySelector(".s-country").value;
+      const country = canonPlace(row.querySelector(".s-country").value);
       const mode = row.dataset.mode || DEFAULT_MODE;
       const tentative = row.querySelector(".s-tent").checked;
       const [st, en] = row.querySelectorAll('input[type="date"]');
       const start = st.value, end = en.value;
       if (!city && !country && !start && !end) continue;
       const where = city || country || "this stop";
-      if (!country) return $("fErr").textContent = `Choose a country for ${where}.`;
+      if (!country) return $("fErr").textContent = `Add a country or state for ${where}.`;
       if ((start && !end) || (!start && end)) return $("fErr").textContent = `Add both dates for ${where}, or leave both blank.`;
       if (start && end < start) return $("fErr").textContent = `The dates for ${where} end before they start.`;
       stops.push(tentative ? { city, country, start, end, mode, tentative: true } : { city, country, start, end, mode });
@@ -1591,12 +1603,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
       return "Couldn't save. Check your connection and try again.";
     }
     let pmEditing = null, pmDelArmed = false;
-    function pmCountryOptions(sel) {
-      const box = $("pmCountry"); box.innerHTML = "";
-      const none = el("option", null, "None"); none.value = ""; box.append(none);
-      for (const c of [...new Set(COUNTRIES.concat(sel ? [sel] : []))]) { const o = el("option", null, c); o.value = c; box.append(o); }
-      box.value = sel || "";
-    }
+    function pmCountryOptions(sel) { refreshPlaceList(); $("pmCountry").value = sel || ""; }
     function pmShowList() {
       pmEditing = null; $("pmTitle").textContent = "Manage projects";
       $("pmListView").hidden = false; $("pmEditView").hidden = true; $("pmSave").hidden = true; $("pmDelete").hidden = true;
@@ -1638,7 +1645,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     $("pmForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       if (!pmEditing) return;
-      const name = $("pmName").value.trim(), start = $("pmStart").value, end = $("pmEnd").value, country = $("pmCountry").value;
+      const name = $("pmName").value.trim(), start = $("pmStart").value, end = $("pmEnd").value, country = canonPlace($("pmCountry").value);
       if (!name) return $("pmErr").textContent = "Give the project a name.";
       if ((start && !end) || (!start && end)) return $("pmErr").textContent = "Add both a start and an end date, or leave both blank.";
       if (start && end < start) return $("pmErr").textContent = "The end date is before the start date.";
