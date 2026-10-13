@@ -101,7 +101,10 @@ header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content:
 .flap.flick { animation: flick 80ms linear; }
 .flap::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--split); }
 @keyframes flick { 0% { transform: rotateX(0); } 50% { transform: rotateX(-90deg); } 100% { transform: rotateX(0); } }
-.proj { position: relative; margin-top: 14px; display: inline-block; }
+.proj { position: relative; margin-top: 14px; display: inline-flex; flex-wrap: wrap; align-items: stretch; gap: 6px; max-width: 100%; }
+.proj-copy { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 6px; padding: 7px 11px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.proj-copy:hover { color: var(--fg); border-color: var(--amber); }
+.proj-copy.done { color: var(--amber); border-color: var(--amber); }
 .proj-btn { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-left: 4px solid var(--amber); background: var(--panel); color: var(--fg); border-radius: 6px; padding: 7px 12px; font-family: var(--font-mono); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; max-width: 100%; }
 .proj-btn:hover, .proj-btn[aria-expanded="true"] { border-color: var(--amber); }
 .proj-btn .k { color: var(--muted); font-size: 10px; letter-spacing: .16em; }
@@ -387,6 +390,10 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         <button type="button" class="proj-btn" id="projBtn" aria-expanded="false" aria-controls="projMenu">
           <span class="k">Trip</span><span class="v" id="projName">…</span>
           <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <button type="button" class="proj-copy" id="projCopy" aria-label="Copy a link to this trip" title="Copy a link to this trip">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+          <span id="projCopyTxt" aria-live="polite">Copy link</span>
         </button>
         <div class="proj-menu" id="projMenu" hidden>
           <ul id="projList"></ul>
@@ -1339,7 +1346,33 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
                country: typeof v.country === "string" ? v.country.trim().slice(0, 40) : "",
                createdAt: typeof v.createdAt === "string" ? v.createdAt : "" };
     }
-    const projSpan = (p) => ({ s: p.start || p.end || "", e: p.end || p.start || "" });
+    // Trips without fixed dates show the span of their travel and key dates instead.
+    const autoSpan = {};   // projectId -> {s, e} | null (no trips yet); missing = not loaded yet
+    function spanOf(stopsLists, evDates) {
+      const ds = [];
+      for (const stops of stopsLists) for (const st of stops || []) if (st && isDate(st.start) && isDate(st.end)) ds.push(st.start, st.end);
+      for (const d of evDates) if (isDate(d)) ds.push(d);
+      if (!ds.length) return null;
+      ds.sort(); return { s: ds[0], e: ds[ds.length - 1] };
+    }
+    function liveSpan() { return spanOf(parties.map((pt) => pt.stops), events.map((e) => e.date)); }
+    async function loadAutoSpans() {
+      const todo = projects.filter((p) => !p.start && p.id !== currentProjectId && !(p.id in autoSpan));
+      for (const p of todo) {
+        autoSpan[p.id] = undefined;
+        try {
+          const ref = fsdb.collection("trips").doc(p.id);
+          const [ps, es] = await Promise.all([ref.collection("parties").get(), ref.collection("events").get()]);
+          autoSpan[p.id] = spanOf(ps.docs.map((d) => (d.data() || {}).stops), es.docs.map((d) => (d.data() || {}).date));
+        } catch (_) { delete autoSpan[p.id]; }
+      }
+      if (todo.length) { renderProjects(); if (!$("pmScrim").hidden && !$("pmListView").hidden) pmShowList(); }
+    }
+    function projSpan(p) {
+      if (p.start || p.end) return { s: p.start || p.end, e: p.end || p.start, fixed: true };
+      const a = p.id === currentProjectId ? liveSpan() : autoSpan[p.id];
+      return a ? { s: a.s, e: a.e } : { s: "", e: "" };
+    }
     function orderedProjects() {
       const today = new Date(todayT).toISOString().slice(0, 10), up = [], past = [];
       for (const p of projects) (projSpan(p).e && projSpan(p).e < today ? past : up).push(p);
@@ -1350,9 +1383,14 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     }
     function projMeta(p) {
       const sp = projSpan(p);
-      if (sp.s && sp.e && sp.s !== sp.e) return `${fmt(toT(sp.s))} – ${fmt(toT(sp.e))} ${sp.e.slice(0, 4)}`;
+      if (sp.s && sp.e && sp.s !== sp.e) {
+        return sp.s.slice(0, 4) === sp.e.slice(0, 4)
+          ? `${fmt(toT(sp.s))} – ${fmt(toT(sp.e))} ${sp.e.slice(0, 4)}`
+          : `${fmt(toT(sp.s))} ${sp.s.slice(0, 4)} – ${fmt(toT(sp.e))} ${sp.e.slice(0, 4)}`;
+      }
       if (sp.s) return `${fmt(toT(sp.s))} ${sp.s.slice(0, 4)}`;
-      return "Dates from trips";
+      const known = p.id === currentProjectId ? loaded : autoSpan[p.id] !== undefined && p.id in autoSpan;
+      return known ? "No trips yet" : "…";
     }
     function initialProjectId() {
       const ids = new Set(projects.map((p) => p.id));
@@ -1378,7 +1416,25 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
         li.append(b); ul.append(li);
       }
     }
-    $("projBtn").addEventListener("click", () => setProjMenu($("projMenu").hidden));
+    $("projBtn").addEventListener("click", () => { const open = $("projMenu").hidden; setProjMenu(open); if (open) { renderProjects(); loadAutoSpans(); } });
+    // copy a link that opens this trip directly
+    let copyTimer = null;
+    $("projCopy").addEventListener("click", async () => {
+      const url = location.origin + location.pathname + "#" + encodeURIComponent(currentProjectId || MAIN_ID);
+      let ok = false;
+      try { await navigator.clipboard.writeText(url); ok = true; }
+      catch (_) {
+        const ta = document.createElement("textarea"); ta.value = url; ta.setAttribute("readonly", "");
+        ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.append(ta); ta.select();
+        try { ok = document.execCommand("copy"); } catch (_) {}
+        ta.remove();
+      }
+      const b = $("projCopy"), t = $("projCopyTxt");
+      b.classList.toggle("done", ok);
+      t.textContent = ok ? "Link copied" : "Copy it from the address bar";   // the address bar already shows this trip's link
+      clearTimeout(copyTimer);
+      copyTimer = setTimeout(() => { b.classList.remove("done"); t.textContent = "Copy link"; }, ok ? 2200 : 5000);
+    });
     document.addEventListener("click", (e) => { if (!$("projMenu").hidden && !e.target.closest(".proj")) setProjMenu(false); });
     window.addEventListener("hashchange", () => {
       const h = decodeURIComponent(location.hash.slice(1));
@@ -1386,6 +1442,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     });
 
     function selectProject(id) {
+      if (currentProjectId) delete autoSpan[currentProjectId];   // re-read its dates next time the menu opens
       currentProjectId = id;
       try { localStorage.setItem("project", id); } catch (_) {}
       if (decodeURIComponent(location.hash.slice(1)) !== id) { try { history.replaceState(null, "", "#" + id); } catch (_) {} }
@@ -1544,7 +1601,7 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
     const closePm = () => { $("pmScrim").hidden = true; };
     $("projManage").addEventListener("click", () => {
       setProjMenu(false);
-      pmShowList(); $("pmScrim").hidden = false;
+      pmShowList(); $("pmScrim").hidden = false; loadAutoSpans();
     });
     $("pmNew").addEventListener("click", () => pmShowEdit(null));
     $("pmCancel").addEventListener("click", () => { if (!$("pmEditView").hidden) pmShowList(); else closePm(); });
