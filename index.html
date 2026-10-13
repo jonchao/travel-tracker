@@ -121,6 +121,10 @@ header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content:
 .proj-menu .past { border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; margin-left: 6px; }
 .proj-menu #projManage { width: 100%; margin-top: 4px; border-top: 1px dashed var(--line); border-radius: 0 0 6px 6px; text-align: left; font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 .range-note { color: var(--amber); }
+#pmEditView, #pmConfirmField { display: flex; flex-direction: column; gap: 18px; }
+#pmConfirmField { border-top: 1px dashed var(--paper-line); padding-top: 16px; }
+.modal .field .help { line-height: 1.4; margin-top: 2px; }
+.modal .field > label { line-height: 1.3; }
 .pm-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .pm-list button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px dashed var(--paper-line); background: var(--paper-2); color: var(--ink); border-radius: 8px; padding: 10px 12px; text-align: left; }
 .pm-list button:hover { border-color: var(--ink); }
@@ -543,22 +547,24 @@ input[type="text"], input[type="date"], input[type="password"], select { font: i
           <label for="pmName">Project name</label>
           <input id="pmName" type="text" autocomplete="off" maxlength="60" placeholder="e.g. Japan spring 2028">
         </div>
-        <div class="two">
-          <div class="field"><label for="pmStart">Start (optional)</label><input id="pmStart" type="date"></div>
-          <div class="field"><label for="pmEnd">End (optional)</label><input id="pmEnd" type="date"></div>
+        <div class="field">
+          <div class="two">
+            <div class="field"><label for="pmStart">Start (optional)</label><input id="pmStart" type="date"></div>
+            <div class="field"><label for="pmEnd">End (optional)</label><input id="pmEnd" type="date"></div>
+          </div>
+          <span class="help">Leave the dates blank and the board fits everyone's travel, plus a week either side.</span>
         </div>
-        <span class="help">Leave the dates blank and the board fits everyone's travel, plus a week either side.</span>
         <div class="field">
           <label for="pmCountry">Main destination (optional)</label>
-          <input id="pmCountry" type="text" list="placeList" maxlength="40" autocomplete="off" placeholder="A country or state, e.g. Thailand or California">
-          <span class="help">Adds a daily headcount row for this country and pre-fills it for new stops.</span>
+          <input id="pmCountry" type="text" list="placeList" maxlength="40" autocomplete="off" placeholder="e.g. Thailand or California">
+          <span class="help">Adds a daily headcount row for this place and pre-fills it for new stops.</span>
         </div>
         <div id="pmConfirmField" hidden>
           <div class="field">
             <label for="pmConfirm">Type the project name to delete it</label>
             <input id="pmConfirm" type="text" autocomplete="off">
           </div>
-          <div class="field" style="margin-top:12px">
+          <div class="field">
             <label for="pmDelCode">Admin code</label>
             <input id="pmDelCode" type="password" autocomplete="off" maxlength="60" placeholder="Required to delete">
             <span class="help">Deleting removes the project and every trip and key date in it. It can't be undone.</span>
